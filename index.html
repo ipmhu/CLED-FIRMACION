@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Firma Digital Institucional</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <main class="auth-container">
+
+        <section class="auth-card">
+
+            <div class="logo">
+                FD
+            </div>
+
+            <h1>Firma Digital</h1>
+
+            <p class="subtitle">
+                Sistema institucional de gestión documental
+            </p>
+
+            <form id="loginForm">
+
+                <div class="input-group">
+                    <label for="email">Correo electrónico</label>
+
+                    <input
+                        type="email"
+                        id="email"
+                        placeholder="correo@ejemplo.com"
+                        required
+                    >
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Contraseña</label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        placeholder="••••••••"
+                        required
+                    >
+                </div>
+
+                <button type="submit" id="loginButton">
+                    Iniciar sesión
+                </button>
+
+                <p id="loginMessage"></p>
+
+            </form>
+
+        </section>
+
+    </main>
+
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Configuración -->
+    <script src="supabase.js"></script>
+
+    <!-- Lógica -->
+    <script src="auth.js"></script>
+
+</body>
+</html>

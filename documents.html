@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Documentos | Firma Digital</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <strong>Firma Digital</strong>
+    </div>
+
+    <button onclick="window.location.href='dashboard.html'">
+        Volver al panel
+    </button>
+
+</header>
+
+
+<main class="dashboard">
+
+    <section class="welcome">
+
+        <p class="eyebrow">
+            GESTIÓN DOCUMENTAL
+        </p>
+
+        <h1>Documentos</h1>
+
+        <p>
+            Administra los documentos que requieren firma.
+        </p>
+
+    </section>
+
+
+    <section class="document-section">
+
+        <div class="section-header">
+
+            <div>
+
+                <h2>Documentos registrados</h2>
+
+                <p>
+                    Documentos disponibles para los cursos.
+                </p>
+
+            </div>
+
+            <button id="newDocumentButton">
+                + Nuevo documento
+            </button>
+
+        </div>
+
+
+        <div id="documentsContainer">
+
+            <div class="loading">
+                Cargando documentos...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- MODAL -->
+
+    <div
+        id="documentModal"
+        class="modal hidden"
+    >
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <h2>Nuevo documento</h2>
+
+                <button
+                    id="closeModal"
+                    class="close-button"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <form id="documentForm">
+
+
+                <!-- CURSO -->
+
+                <div class="input-group">
+
+                    <label for="documentCourse">
+                        Curso
+                    </label>
+
+                    <select
+                        id="documentCourse"
+                        required
+                    >
+
+                        <option value="">
+                            Seleccionar curso
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- NOMBRE -->
+
+                <div class="input-group">
+
+                    <label for="documentName">
+                        Nombre del documento
+                    </label>
+
+                    <input
+                        type="text"
+                        id="documentName"
+                        placeholder="Ej. Registro de asistencia"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- PDF -->
+
+                <div class="input-group">
+
+                    <label for="documentFile">
+                        Archivo PDF
+                    </label>
+
+                    <input
+                        type="file"
+                        id="documentFile"
+                        accept="application/pdf"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- FIRMAS -->
+
+                <div class="signature-options">
+
+                    <p class="signature-title">
+                        Firmas requeridas
+                    </p>
+
+
+                    <label class="checkbox-option">
+
+                        <input
+                            type="checkbox"
+                            id="beforeSignature"
+                        >
+
+                        <span>
+                            Antes del primer receso
+                        </span>
+
+                    </label>
+
+
+                    <label class="checkbox-option">
+
+                        <input
+                            type="checkbox"
+                            id="afterSignature"
+                        >
+
+                        <span>
+                            Después del primer receso
+                        </span>
+
+                    </label>
+
+                </div>
+
+
+                <button type="submit">
+                    Crear documento
+                </button>
+
+
+                <p id="documentMessage"></p>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</main>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="supabase.js"></script>
+
+<script src="documents.js"></script>
+
+</body>
+
+</html>

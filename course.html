@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Curso | Firma Digital</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <strong>Firma Digital</strong>
+    </div>
+
+    <button onclick="window.location.href='courses.html'">
+        Volver a cursos
+    </button>
+
+</header>
+
+
+<main class="dashboard">
+
+    <section class="welcome">
+
+        <p class="eyebrow">
+            CONFIGURACIÓN DEL CURSO
+        </p>
+
+        <h1 id="courseTitle">
+            Cargando...
+        </h1>
+
+        <p id="courseDescription">
+            Gestiona los profesores responsables de las firmas.
+        </p>
+
+    </section>
+
+
+    <section class="teacher-section">
+
+        <div class="section-header">
+
+            <div>
+
+                <h2>Profesores responsables</h2>
+
+                <p>
+                    Cada curso puede tener dos profesores
+                    responsables de firma.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="signature-slots">
+
+
+            <!-- FIRMA 1 -->
+
+            <article class="signature-slot">
+
+                <div class="slot-header">
+
+                    <div>
+
+                        <span class="slot-number">
+                            FIRMA 1
+                        </span>
+
+                        <h3>
+                            Antes del primer receso
+                        </h3>
+
+                    </div>
+
+                    <span
+                        id="beforeStatus"
+                        class="status-badge pending"
+                    >
+                        Pendiente
+                    </span>
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label for="beforeTeacher">
+                        Profesor responsable
+                    </label>
+
+                    <select id="beforeTeacher">
+
+                        <option value="">
+                            Seleccionar profesor
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <button
+                    id="saveBefore"
+                    class="save-slot"
+                >
+                    Guardar asignación
+                </button>
+
+            </article>
+
+
+            <!-- FIRMA 2 -->
+
+            <article class="signature-slot">
+
+                <div class="slot-header">
+
+                    <div>
+
+                        <span class="slot-number">
+                            FIRMA 2
+                        </span>
+
+                        <h3>
+                            Después del primer receso
+                        </h3>
+
+                    </div>
+
+                    <span
+                        id="afterStatus"
+                        class="status-badge pending"
+                    >
+                        Pendiente
+                    </span>
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label for="afterTeacher">
+                        Profesor responsable
+                    </label>
+
+                    <select id="afterTeacher">
+
+                        <option value="">
+                            Seleccionar profesor
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <button
+                    id="saveAfter"
+                    class="save-slot"
+                >
+                    Guardar asignación
+                </button>
+
+            </article>
+
+
+        </div>
+
+
+        <p id="courseMessage"></p>
+
+    </section>
+
+</main>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="supabase.js"></script>
+
+<script src="course.js"></script>
+
+</body>
+
+</html>

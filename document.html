@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Documento | Firma Digital</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <strong>Firma Digital</strong>
+    </div>
+
+    <button onclick="window.location.href='documents.html'">
+        Volver a documentos
+    </button>
+
+</header>
+
+
+<main class="document-page">
+
+
+    <!-- INFORMACIÓN -->
+
+    <section class="document-header">
+
+        <div>
+
+            <p class="eyebrow">
+                DOCUMENTO
+            </p>
+
+            <h1 id="documentTitle">
+                Cargando...
+            </h1>
+
+            <p id="courseName">
+                Cargando curso...
+            </p>
+
+        </div>
+
+
+        <span
+            id="documentStatus"
+            class="status-badge pending"
+        >
+            Pendiente
+        </span>
+
+    </section>
+
+
+
+    <!-- VISOR -->
+
+    <section class="pdf-section">
+
+        <div class="section-title">
+
+            <h2>Documento</h2>
+
+            <p>
+                Lee el documento antes de iniciar una firma.
+            </p>
+
+        </div>
+
+
+        <div class="pdf-viewer">
+
+            <iframe
+                id="pdfViewer"
+                title="Visor del documento"
+            ></iframe>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- FIRMAS -->
+
+    <section class="signature-section">
+
+        <div class="section-title">
+
+            <h2>Firmas requeridas</h2>
+
+            <p>
+                Cada profesor puede firmar de forma independiente.
+            </p>
+
+        </div>
+
+
+        <div id="signatureContainer">
+
+            <div class="loading">
+                Cargando firmas...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <p id="documentMessage"></p>
+
+
+</main>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="supabase.js"></script>
+
+<script src="document.js"></script>
+
+</body>
+
+</html>

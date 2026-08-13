@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Cursos | Firma Digital</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <strong>Firma Digital</strong>
+    </div>
+
+    <button onclick="window.location.href='dashboard.html'">
+        Volver al panel
+    </button>
+
+</header>
+
+
+<main class="dashboard">
+
+    <section class="welcome">
+
+        <p class="eyebrow">
+            GESTIÓN ACADÉMICA
+        </p>
+
+        <h1>Cursos</h1>
+
+        <p>
+            Administra los cursos que utilizarán el sistema de firma.
+        </p>
+
+    </section>
+
+
+    <section class="course-section">
+
+        <div class="section-header">
+
+            <div>
+                <h2>Lista de cursos</h2>
+
+                <p>
+                    Cursos registrados en el sistema.
+                </p>
+            </div>
+
+            <button id="newCourseButton">
+                + Nuevo curso
+            </button>
+
+        </div>
+
+
+        <div id="coursesContainer">
+
+            <div class="loading">
+                Cargando cursos...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- MODAL -->
+
+    <div
+        id="courseModal"
+        class="modal hidden"
+    >
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <h2>Nuevo curso</h2>
+
+                <button
+                    id="closeModal"
+                    class="close-button"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <form id="courseForm">
+
+                <div class="input-group">
+
+                    <label for="courseName">
+                        Nombre del curso
+                    </label>
+
+                    <input
+                        type="text"
+                        id="courseName"
+                        placeholder="Ej. 4to"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label for="courseSection">
+                        Sección
+                    </label>
+
+                    <input
+                        type="text"
+                        id="courseSection"
+                        placeholder="Ej. A Informática"
+                    >
+
+                </div>
+
+
+                <button type="submit">
+                    Guardar curso
+                </button>
+
+                <p id="courseMessage"></p>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</main>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="supabase.js"></script>
+
+<script src="courses.js"></script>
+
+</body>
+
+</html>
