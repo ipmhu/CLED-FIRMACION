@@ -342,7 +342,53 @@ async function init() {
 
     await loadSignatures();
 
+    listenForSignatureChanges();
+
 }
 
 
 init();
+
+// =========================================
+// ACTUALIZAR FIRMAS EN TIEMPO REAL
+// =========================================
+
+function listenForSignatureChanges() {
+
+    supabaseClient
+        .channel(
+            `document-signatures-${documentId}`
+        )
+        .on(
+            "postgres_changes",
+            {
+                event: "UPDATE",
+
+                schema: "public",
+
+                table: "document_signatures",
+
+                filter:
+                    `document_id=eq.${documentId}`
+            },
+
+            payload => {
+
+                console.log(
+                    "Firma actualizada:",
+                    payload.new
+                );
+
+
+                // Recargar las firmas
+                loadSignatures();
+
+
+                // Recargar el documento
+                loadDocument();
+
+            }
+        )
+        .subscribe();
+
+}
