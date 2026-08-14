@@ -1,40 +1,872 @@
-// document.js
+// =========================================
+// CONFIGURADOR DE POSICIONES
+// =========================================
+
+const configureSignaturesButton =
+    document.getElementById(
+        "configureSignaturesButton"
+    );
+
+const signatureConfigurator =
+    document.getElementById(
+        "signatureConfigurator"
+    );
+
+const pdfConfigScroll =
+    document.getElementById(
+        "pdfConfigScroll"
+    );
+
+const selectBeforeSignature =
+    document.getElementById(
+        "selectBeforeSignature"
+    );
+
+const selectAfterSignature =
+    document.getElementById(
+        "selectAfterSignature"
+    );
+
+const saveSignaturePositions =
+    document.getElementById(
+        "saveSignaturePositions"
+    );
+
+const closeSignatureConfigurator =
+    document.getElementById(
+        "closeSignatureConfigurator"
+    );
+
+const configMessage =
+    document.getElementById(
+        "configMessage"
+    );
+
+
+let pdfDocument = null;
+
+let signatureMarkers = {};
+
+let selectedSignatureSlot =
+    "BEFORE_RECESS";
 
 
 // =========================================
-// ID DEL DOCUMENTO
+// CONFIGURAR PDF.JS
 // =========================================
 
-const params =
-    new URLSearchParams(window.location.search);
+if (
+    typeof pdfjsLib !==
+    "undefined"
+) {
 
-const documentId =
-    params.get("id");
-
-
-if (!documentId) {
-
-    window.location.href =
-        "documents.html";
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 }
 
 
 // =========================================
-// ELEMENTOS
+// ABRIR CONFIGURADOR
 // =========================================
 
-const documentTitle =
-    document.getElementById("documentTitle");
+configureSignaturesButton.addEventListener(
+    "click",
+    openSignatureConfigurator
+);
 
-const courseName =
-    document.getElementById("courseName");
 
-const documentStatus =
-    document.getElementById("documentStatus");
+async function openSignatureConfigurator() {
 
-const pdfViewer =
-    document.getElementById("pdfViewer");
+    signatureConfigurator.classList.remove(
+        "hidden"
+    );
+
+
+    configMessage.textContent =
+        "Cargando documento...";
+
+
+    try {
+
+        const { data, error } =
+            await supabaseClient
+                .from("documents")
+                .select(
+                    "original_file_path"
+                )
+                .eq("id", documentId)
+                .single();
+
+
+        if (error) {
+
+            throw error;
+
+        }
+
+
+        const {
+            data: signedData,
+            error: signedError
+        } =
+            await supabaseClient
+                .storage
+                .from("documents")
+                .createSignedUrl(
+                    data.original_file_path,
+                    3600
+                );
+
+
+        if (signedError) {
+
+            throw signedError;
+
+        }
+
+
+        await renderConfigurationPDF(
+            signedData.signedUrl
+        );
+
+
+        await loadExistingSignaturePositions();
+
+
+        configMessage.textContent =
+            "Selecciona una firma y arrástrala al lugar deseado.";
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Error abriendo configurador:",
+            error
+        );
+
+
+        configMessage.textContent =
+            "No se pudo cargar el PDF.";
+
+    }
+
+}
+
+
+// =========================================
+// RENDERIZAR PDF
+// =========================================
+
+async function renderConfigurationPDF(
+    pdfUrl
+) {
+
+    pdfConfigScroll.innerHTML =
+        "";
+
+
+    pdfDocument =
+        await pdfjsLib.getDocument(
+            pdfUrl
+        ).promise;
+
+
+    for (
+        let pageNumber = 1;
+        pageNumber <= pdfDocument.numPages;
+        pageNumber++
+    ) {
+
+        const page =
+            await pdfDocument.getPage(
+                pageNumber
+            );
+
+
+        const scale = 1.2;
+
+
+        const viewport =
+            page.getViewport({
+                scale
+            });
+
+
+        const pageContainer =
+            document.createElement(
+                "div"
+            );
+
+
+        pageContainer.className =
+            "pdf-config-page";
+
+
+        pageContainer.dataset.page =
+            pageNumber;
+
+
+        const canvas =
+            document.createElement(
+                "canvas"
+            );
+
+
+        canvas.width =
+            viewport.width;
+
+        canvas.height =
+            viewport.height;
+
+
+        canvas.dataset.pageWidth =
+            viewport.width;
+
+        canvas.dataset.pageHeight =
+            viewport.height;
+
+
+        pageContainer.appendChild(
+            canvas
+        );
+
+
+        pdfConfigScroll.appendChild(
+            pageContainer
+        );
+
+
+        const context =
+            canvas.getContext(
+                "2d"
+            );
+
+
+        await page.render({
+            canvasContext:
+                context,
+
+            viewport:
+                viewport
+        }).promise;
+
+    }
+
+}
+
+
+// =========================================
+// CARGAR POSICIONES EXISTENTES
+// =========================================
+
+async function loadExistingSignaturePositions() {
+
+    const { data, error } =
+        await supabaseClient
+            .from("document_signatures")
+            .select(`
+                id,
+                signature_slot,
+                signature_page,
+                signature_x,
+                signature_y,
+                signature_width,
+                signature_height
+            `)
+            .eq(
+                "document_id",
+                documentId
+            );
+
+
+    if (error) {
+
+        console.error(
+            error
+        );
+
+        return;
+
+    }
+
+
+    data.forEach(
+        signature => {
+
+            if (
+                signature.signature_page
+            ) {
+
+                createSignatureMarker(
+                    signature
+                );
+
+            }
+
+        }
+    );
+
+}
+
+
+// =========================================
+// SELECCIONAR FIRMA
+// =========================================
+
+selectBeforeSignature.addEventListener(
+    "click",
+    () => {
+
+        selectedSignatureSlot =
+            "BEFORE_RECESS";
+
+
+        selectBeforeSignature.classList.add(
+            "active"
+        );
+
+
+        selectAfterSignature.classList.remove(
+            "active"
+        );
+
+
+        configMessage.textContent =
+            "FIRMA 1 seleccionada. Haz clic en una página para colocarla.";
+
+    }
+);
+
+
+selectAfterSignature.addEventListener(
+    "click",
+    () => {
+
+        selectedSignatureSlot =
+            "AFTER_RECESS";
+
+
+        selectAfterSignature.classList.add(
+            "active"
+        );
+
+
+        selectBeforeSignature.classList.remove(
+            "active"
+        );
+
+
+        configMessage.textContent =
+            "FIRMA 2 seleccionada. Haz clic en una página para colocarla.";
+
+    }
+);
+
+
+// =========================================
+// CREAR FIRMA AL HACER CLIC
+// =========================================
+
+pdfConfigScroll.addEventListener(
+    "click",
+    event => {
+
+        const page =
+            event.target.closest(
+                ".pdf-config-page"
+            );
+
+
+        if (!page) {
+
+            return;
+
+        }
+
+
+        if (
+            event.target.closest(
+                ".signature-marker"
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        const existing =
+            signatureMarkers[
+                selectedSignatureSlot
+            ];
+
+
+        if (existing) {
+
+            configMessage.textContent =
+                "Esta firma ya está colocada. Arrástrala para moverla.";
+
+            return;
+
+        }
+
+
+        const rect =
+            page.getBoundingClientRect();
+
+
+        const x =
+            event.clientX -
+            rect.left -
+            90;
+
+
+        const y =
+            event.clientY -
+            rect.top -
+            35;
+
+
+        const signature = {
+
+            id:
+                null,
+
+            signature_slot:
+                selectedSignatureSlot,
+
+            signature_page:
+                Number(
+                    page.dataset.page
+                ),
+
+            signature_x:
+                x,
+
+            signature_y:
+                y,
+
+            signature_width:
+                180,
+
+            signature_height:
+                70
+
+        };
+
+
+        createSignatureMarker(
+            signature
+        );
+
+    }
+);
+
+
+// =========================================
+// CREAR MARCADOR
+// =========================================
+
+function createSignatureMarker(
+    signature
+) {
+
+    const oldMarker =
+        signatureMarkers[
+            signature.signature_slot
+        ];
+
+
+    if (oldMarker) {
+
+        oldMarker.remove();
+
+    }
+
+
+    const page =
+        document.querySelector(
+            `.pdf-config-page[data-page="${signature.signature_page}"]`
+        );
+
+
+    if (!page) {
+
+        return;
+
+    }
+
+
+    const marker =
+        document.createElement(
+            "div"
+        );
+
+
+    marker.className =
+        "signature-marker";
+
+
+    marker.classList.add(
+        signature.signature_slot ===
+        "BEFORE_RECESS"
+            ? "before"
+            : "after"
+    );
+
+
+    marker.innerHTML = `
+
+        <div>
+
+            <strong>
+                ${
+                    signature.signature_slot ===
+                    "BEFORE_RECESS"
+                        ? "FIRMA 1"
+                        : "FIRMA 2"
+                }
+            </strong>
+
+            <small>
+                Arrastra aquí
+            </small>
+
+        </div>
+
+    `;
+
+
+    const width =
+        Number(
+            signature.signature_width
+        ) || 180;
+
+
+    const height =
+        Number(
+            signature.signature_height
+        ) || 70;
+
+
+    marker.style.width =
+        `${width}px`;
+
+
+    marker.style.height =
+        `${height}px`;
+
+
+    marker.style.left =
+        `${Number(signature.signature_x) || 20}px`;
+
+
+    marker.style.top =
+        `${Number(signature.signature_y) || 20}px`;
+
+
+    page.appendChild(
+        marker
+    );
+
+
+    signatureMarkers[
+        signature.signature_slot
+    ] = marker;
+
+
+    makeMarkerDraggable(
+        marker,
+        signature.signature_slot
+    );
+
+}
+
+
+// =========================================
+// ARRASTRAR MARCADOR
+// =========================================
+
+function makeMarkerDraggable(
+    marker,
+    slot
+) {
+
+    let dragging =
+        false;
+
+    let offsetX =
+        0;
+
+    let offsetY =
+        0;
+
+
+    marker.addEventListener(
+        "pointerdown",
+        event => {
+
+            event.preventDefault();
+
+            dragging =
+                true;
+
+
+            const rect =
+                marker.getBoundingClientRect();
+
+
+            offsetX =
+                event.clientX -
+                rect.left;
+
+
+            offsetY =
+                event.clientY -
+                rect.top;
+
+
+            marker.setPointerCapture(
+                event.pointerId
+            );
+
+        }
+    );
+
+
+    marker.addEventListener(
+        "pointermove",
+        event => {
+
+            if (!dragging) {
+
+                return;
+
+            }
+
+
+            const page =
+                marker.parentElement;
+
+
+            const pageRect =
+                page.getBoundingClientRect();
+
+
+            let x =
+                event.clientX -
+                pageRect.left -
+                offsetX;
+
+
+            let y =
+                event.clientY -
+                pageRect.top -
+                offsetY;
+
+
+            x =
+                Math.max(
+                    0,
+                    Math.min(
+                        x,
+                        pageRect.width -
+                        marker.offsetWidth
+                    )
+                );
+
+
+            y =
+                Math.max(
+                    0,
+                    Math.min(
+                        y,
+                        pageRect.height -
+                        marker.offsetHeight
+                    )
+                );
+
+
+            marker.style.left =
+                `${x}px`;
+
+
+            marker.style.top =
+                `${y}px`;
+
+        }
+    );
+
+
+    marker.addEventListener(
+        "pointerup",
+        event => {
+
+            dragging =
+                false;
+
+            marker.releasePointerCapture(
+                event.pointerId
+            );
+
+        }
+    );
+
+}
+
+
+// =========================================
+// GUARDAR POSICIONES
+// =========================================
+
+saveSignaturePositions.addEventListener(
+    "click",
+    saveAllSignaturePositions
+);
+
+
+async function saveAllSignaturePositions() {
+
+    configMessage.textContent =
+        "Guardando posiciones...";
+
+
+    try {
+
+        const slots = [
+            "BEFORE_RECESS",
+            "AFTER_RECESS"
+        ];
+
+
+        for (
+            const slot of slots
+        ) {
+
+            const marker =
+                signatureMarkers[
+                    slot
+                ];
+
+
+            if (!marker) {
+
+                continue;
+
+            }
+
+
+            const page =
+                marker.parentElement;
+
+
+            const pageNumber =
+                Number(
+                    page.dataset.page
+                );
+
+
+            const x =
+                parseFloat(
+                    marker.style.left
+                );
+
+
+            const y =
+                parseFloat(
+                    marker.style.top
+                );
+
+
+            const width =
+                marker.offsetWidth;
+
+
+            const height =
+                marker.offsetHeight;
+
+
+            const {
+                error
+            } =
+                await supabaseClient
+                    .from(
+                        "document_signatures"
+                    )
+                    .update({
+
+                        signature_page:
+                            pageNumber,
+
+                        signature_x:
+                            x,
+
+                        signature_y:
+                            y,
+
+                        signature_width:
+                            width,
+
+                        signature_height:
+                            height
+
+                    })
+                    .eq(
+                        "document_id",
+                        documentId
+                    )
+                    .eq(
+                        "signature_slot",
+                        slot
+                    );
+
+
+            if (error) {
+
+                throw error;
+
+            }
+
+        }
+
+
+        configMessage.textContent =
+            "✓ Posiciones guardadas correctamente.";
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Error guardando posiciones:",
+            error
+        );
+
+
+        configMessage.textContent =
+            `No se pudieron guardar las posiciones: ${error.message}`;
+
+    }
+
+}
+
+
+// =========================================
+// CERRAR
+// =========================================
+
+closeSignatureConfigurator.addEventListener(
+    "click",
+    () => {
+
+        signatureConfigurator.classList.add(
+            "hidden"
+        );
+
+    }
+);    document.getElementById("pdfViewer");
 
 const signatureContainer =
     document.getElementById("signatureContainer");
