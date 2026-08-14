@@ -3,9 +3,7 @@
 // =========================================
 
 const params =
-    new URLSearchParams(
-        window.location.search
-    );
+    new URLSearchParams(window.location.search);
 
 const token =
     params.get("token");
@@ -16,49 +14,40 @@ const token =
 // =========================================
 
 const documentName =
-    document.getElementById(
-        "documentName"
-    );
+    document.getElementById("documentName");
 
 const courseName =
-    document.getElementById(
-        "courseName"
-    );
+    document.getElementById("courseName");
 
 const teacherName =
-    document.getElementById(
-        "teacherName"
-    );
+    document.getElementById("teacherName");
 
 const signatureSlot =
-    document.getElementById(
-        "signatureSlot"
-    );
+    document.getElementById("signatureSlot");
 
 const signMessage =
-    document.getElementById(
-        "signMessage"
-    );
+    document.getElementById("signMessage");
 
 const pdfViewer =
-    document.getElementById(
-        "pdfViewer"
-    );
+    document.getElementById("pdfViewer");
 
 const canvas =
-    document.getElementById(
-        "signatureCanvas"
-    );
+    document.getElementById("signatureCanvas");
 
 const clearButton =
-    document.getElementById(
-        "clearSignature"
-    );
+    document.getElementById("clearSignature");
 
 const finishButton =
-    document.getElementById(
-        "finishSignature"
-    );
+    document.getElementById("finishSignature");
+
+
+// =========================================
+// VARIABLES DE FIRMA
+// =========================================
+
+let context;
+let drawing = false;
+let hasSignature = false;
 
 
 // =========================================
@@ -76,7 +65,240 @@ function showError(message) {
 
 
 // =========================================
-// CARGAR DOCUMENTO
+// CONFIGURAR CANVAS
+// =========================================
+
+function setupSignatureCanvas() {
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+    const ratio =
+        window.devicePixelRatio || 1;
+
+
+    canvas.width =
+        rect.width * ratio;
+
+    canvas.height =
+        rect.height * ratio;
+
+
+    context =
+        canvas.getContext("2d");
+
+
+    context.scale(
+        ratio,
+        ratio
+    );
+
+
+    context.lineWidth =
+        2.5;
+
+    context.lineCap =
+        "round";
+
+    context.lineJoin =
+        "round";
+
+
+    /*
+     * IMPORTANTE:
+     * evita que Safari/Chrome interpreten
+     * el movimiento como desplazamiento
+     * de la página.
+     */
+
+    canvas.style.touchAction =
+        "none";
+
+
+    canvas.addEventListener(
+        "pointerdown",
+        startDrawing
+    );
+
+
+    canvas.addEventListener(
+        "pointermove",
+        draw
+    );
+
+
+    canvas.addEventListener(
+        "pointerup",
+        stopDrawing
+    );
+
+
+    canvas.addEventListener(
+        "pointercancel",
+        stopDrawing
+    );
+
+
+    canvas.addEventListener(
+        "pointerleave",
+        stopDrawing
+    );
+
+}
+
+
+// =========================================
+// POSICIÓN DEL PUNTERO
+// =========================================
+
+function getPointerPosition(event) {
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+
+    return {
+
+        x:
+            event.clientX -
+            rect.left,
+
+        y:
+            event.clientY -
+            rect.top
+
+    };
+
+}
+
+
+// =========================================
+// INICIAR DIBUJO
+// =========================================
+
+function startDrawing(event) {
+
+    event.preventDefault();
+
+
+    drawing =
+        true;
+
+
+    hasSignature =
+        true;
+
+
+    canvas.setPointerCapture(
+        event.pointerId
+    );
+
+
+    const position =
+        getPointerPosition(event);
+
+
+    context.beginPath();
+
+
+    context.moveTo(
+        position.x,
+        position.y
+    );
+
+}
+
+
+// =========================================
+// DIBUJAR
+// =========================================
+
+function draw(event) {
+
+    if (!drawing) {
+        return;
+    }
+
+
+    event.preventDefault();
+
+
+    const position =
+        getPointerPosition(event);
+
+
+    context.lineTo(
+        position.x,
+        position.y
+    );
+
+
+    context.stroke();
+
+}
+
+
+// =========================================
+// TERMINAR DIBUJO
+// =========================================
+
+function stopDrawing(event) {
+
+    if (!drawing) {
+        return;
+    }
+
+
+    drawing =
+        false;
+
+
+    if (
+        event.pointerId !== undefined &&
+        canvas.hasPointerCapture(
+            event.pointerId
+        )
+    ) {
+
+        canvas.releasePointerCapture(
+            event.pointerId
+        );
+
+    }
+
+}
+
+
+// =========================================
+// LIMPIAR FIRMA
+// =========================================
+
+clearButton.addEventListener(
+    "click",
+    () => {
+
+        if (!context) {
+            return;
+        }
+
+
+        context.clearRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+        hasSignature =
+            false;
+
+    }
+);
+
+
+// =========================================
+// CARGAR SESIÓN
 // =========================================
 
 async function loadDocument() {
@@ -97,10 +319,6 @@ async function loadDocument() {
         signMessage.textContent =
             "Verificando documento...";
 
-
-        // =================================
-        // OBTENER SESIÓN
-        // =================================
 
         const { data, error } =
             await supabaseClient.rpc(
@@ -149,10 +367,6 @@ async function loadDocument() {
         }
 
 
-        // =================================
-        // DATOS
-        // =================================
-
         const signature =
             data.signature;
 
@@ -193,7 +407,7 @@ async function loadDocument() {
 
 
         // =================================
-        // OBTENER RUTA DEL PDF
+        // PDF
         // =================================
 
         const filePath =
@@ -211,16 +425,6 @@ async function loadDocument() {
         }
 
 
-        console.log(
-            "Ruta del PDF:",
-            filePath
-        );
-
-
-        // =================================
-        // CREAR URL TEMPORAL
-        // =================================
-
         const {
             data: signedData,
             error: signedError
@@ -237,7 +441,6 @@ async function loadDocument() {
         if (signedError) {
 
             console.error(
-                "Error Storage:",
                 signedError
             );
 
@@ -250,23 +453,6 @@ async function loadDocument() {
         }
 
 
-        if (!signedData?.signedUrl) {
-
-            showError(
-                "Supabase no generó una URL para el PDF."
-            );
-
-            return;
-
-        }
-
-
-        console.log(
-            "URL PDF:",
-            signedData.signedUrl
-        );
-
-
         pdfViewer.src =
             signedData.signedUrl;
 
@@ -275,8 +461,11 @@ async function loadDocument() {
             "Documento listo. Puedes firmarlo.";
 
 
-        setupSignatureCanvas();
+        // =================================
+        // CANVAS
+        // =================================
 
+        setupSignatureCanvas();
 
     }
 
@@ -295,286 +484,36 @@ async function loadDocument() {
 
 
 // =========================================
-// CANVAS
-// =========================================
-
-function setupSignatureCanvas() {
-
-    const ratio =
-        Math.max(
-            window.devicePixelRatio || 1,
-            1
-        );
-
-
-    const width =
-        canvas.offsetWidth;
-
-
-    const height =
-        220;
-
-
-    canvas.width =
-        width * ratio;
-
-
-    canvas.height =
-        height * ratio;
-
-
-    const context =
-        canvas.getContext("2d");
-
-
-    context.scale(
-        ratio,
-        ratio
-    );
-
-
-    context.lineWidth =
-        2;
-
-
-    context.lineCap =
-        "round";
-
-
-    context.lineJoin =
-        "round";
-
-
-    let drawing =
-        false;
-
-
-    function getPosition(event) {
-
-        const rect =
-            canvas.getBoundingClientRect();
-
-
-        if (
-            event.touches &&
-            event.touches.length
-        ) {
-
-            return {
-
-                x:
-                    event.touches[0].clientX -
-                    rect.left,
-
-                y:
-                    event.touches[0].clientY -
-                    rect.top
-
-            };
-
-        }
-
-
-        return {
-
-            x:
-                event.clientX -
-                rect.left,
-
-            y:
-                event.clientY -
-                rect.top
-
-        };
-
-    }
-
-
-    function startDrawing(event) {
-
-        event.preventDefault();
-
-        drawing =
-            true;
-
-
-        const position =
-            getPosition(event);
-
-
-        context.beginPath();
-
-
-        context.moveTo(
-            position.x,
-            position.y
-        );
-
-    }
-
-
-    function draw(event) {
-
-        if (!drawing) {
-            return;
-        }
-
-
-        event.preventDefault();
-
-
-        const position =
-            getPosition(event);
-
-
-        context.lineTo(
-            position.x,
-            position.y
-        );
-
-
-        context.stroke();
-
-    }
-
-
-    function stopDrawing() {
-
-        drawing =
-            false;
-
-    }
-
-
-    canvas.addEventListener(
-        "mousedown",
-        startDrawing
-    );
-
-
-    canvas.addEventListener(
-        "mousemove",
-        draw
-    );
-
-
-    canvas.addEventListener(
-        "mouseup",
-        stopDrawing
-    );
-
-
-    canvas.addEventListener(
-        "mouseleave",
-        stopDrawing
-    );
-
-
-    canvas.addEventListener(
-        "touchstart",
-        startDrawing,
-        {
-            passive: false
-        }
-    );
-
-
-    canvas.addEventListener(
-        "touchmove",
-        draw,
-        {
-            passive: false
-        }
-    );
-
-
-    canvas.addEventListener(
-        "touchend",
-        stopDrawing
-    );
-
-}
-
-
-// =========================================
-// LIMPIAR FIRMA
-// =========================================
-
-clearButton.addEventListener(
-    "click",
-    () => {
-
-        const context =
-            canvas.getContext("2d");
-
-
-        context.clearRect(
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-
-    }
-);
-
-
-// =========================================
-// FINALIZAR FIRMA
+// FINALIZAR
 // =========================================
 
 finishButton.addEventListener(
     "click",
     async () => {
 
-        signMessage.textContent =
-            "Guardando firma...";
-
-
-        finishButton.disabled =
-            true;
-
-
-        try {
-
-            const signatureImage =
-                canvas.toDataURL(
-                    "image/png"
-                );
-
-
-            console.log(
-                "Firma preparada:",
-                signatureImage.length
-            );
-
-
-            // =================================
-            // POR AHORA
-            // =================================
+        if (!hasSignature) {
 
             signMessage.textContent =
-                "Firma preparada correctamente.";
+                "Debes realizar tu firma antes de continuar.";
 
-            finishButton.disabled =
-                false;
-
+            return;
 
         }
 
-        catch (error) {
 
-            console.error(error);
-
-            showError(
-                error.message
+        const signatureImage =
+            canvas.toDataURL(
+                "image/png"
             );
 
 
-            finishButton.disabled =
-                false;
+        console.log(
+            "Firma capturada correctamente."
+        );
 
-        }
+
+        signMessage.textContent =
+            "Firma capturada correctamente.";
 
     }
 );
