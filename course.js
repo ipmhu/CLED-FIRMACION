@@ -233,14 +233,17 @@ function setStatus(element, assigned) {
 // GUARDAR ASIGNACIÓN
 // =========================================
 
+// =========================================
+// GUARDAR ASIGNACIÓN
+// =========================================
+
 async function saveAssignment(
     teacherSelect,
     slot,
     statusElement
 ) {
 
-    const teacherId =
-        teacherSelect.value;
+    const teacherId = teacherSelect.value;
 
 
     if (!teacherId) {
@@ -292,50 +295,6 @@ async function saveAssignment(
         "Asignación guardada correctamente.";
 
 }
-
-
-    // Determinar la firma correspondiente
-    const signatureSlot =
-        slot === "BEFORE_RECESS"
-            ? "BEFORE_RECESS"
-            : "AFTER_RECESS";
-
-
-    const { error } =
-        await supabaseClient
-            .from("document_signatures")
-            .update({
-                teacher_id: Number(teacherId)
-            })
-            .eq("document_id", documentId)
-            .eq("signature_slot", signatureSlot);
-
-
-    if (error) {
-
-        console.error(
-            "Error guardando asignación:",
-            error
-        );
-
-        courseMessage.textContent =
-            `No se pudo guardar la asignación: ${error.message}`;
-
-        return;
-    }
-
-
-    setStatus(
-        statusElement,
-        true
-    );
-
-
-    courseMessage.textContent =
-        "Asignación guardada correctamente.";
-
-}
-
 
 // =========================================
 // BOTONES
