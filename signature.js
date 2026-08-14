@@ -156,8 +156,8 @@ async function createSignatureSession() {
 
 function generateQR(token) {
 
-    const signingURL =
-        `${window.location.origin}/sign.html?token=${encodeURIComponent(token)}`;
+const signingURL =
+    `https://ipmhu.github.io/sign.html?token=${encodeURIComponent(token)}`;
 
 
     console.log("URL DEL QR:", signingURL);
