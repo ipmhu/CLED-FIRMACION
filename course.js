@@ -46,36 +46,73 @@ const courseMessage =
 
 
 // =========================================
+// MENSAJE
+// =========================================
+
+function showMessage(message) {
+
+    if (courseMessage) {
+
+        courseMessage.textContent =
+            message;
+
+    }
+
+}
+
+
+// =========================================
 // CARGAR CURSO
 // =========================================
 
 async function loadCourse() {
 
-    const { data, error } =
-        await supabaseClient
-            .from("courses")
-            .select("*")
-            .eq("id", courseId)
-            .single();
+    try {
+
+        const { data, error } =
+            await supabaseClient
+                .from("courses")
+                .select("*")
+                .eq("id", courseId)
+                .single();
 
 
-    if (error) {
+        if (error) {
 
-        console.error(error);
+            console.error(
+                "Error cargando curso:",
+                error
+            );
+
+            courseTitle.textContent =
+                "Curso no encontrado";
+
+            return;
+
+        }
+
 
         courseTitle.textContent =
-            "Curso no encontrado";
+            `${data.name} ${data.section || ""}`;
 
-        return;
+
+        courseDescription.textContent =
+            "Gestiona los profesores responsables de las firmas.";
+
     }
 
+    catch (error) {
 
-    courseTitle.textContent =
-        `${data.name} ${data.section || ""}`;
+        console.error(
+            "Error inesperado:",
+            error
+        );
 
+        showMessage(
+            "Ocurrió un error al cargar el curso."
+        );
 
-    courseDescription.textContent =
-        "Gestiona los profesores responsables de las firmas.";
+    }
 
 }
 
@@ -86,118 +123,172 @@ async function loadCourse() {
 
 async function loadTeachers() {
 
-    const { data, error } =
-        await supabaseClient
-            .from("teachers")
-            .select("*")
-            .eq("active", true)
-            .order("full_name");
+    try {
+
+        const { data, error } =
+            await supabaseClient
+                .from("teachers")
+                .select("*")
+                .eq("active", true)
+                .order("full_name");
 
 
-    if (error) {
+        if (error) {
 
-        console.error(error);
+            console.error(
+                "Error cargando profesores:",
+                error
+            );
 
-        courseMessage.textContent =
-            "No se pudieron cargar los profesores.";
+            showMessage(
+                "No se pudieron cargar los profesores."
+            );
 
-        return;
+            return;
+
+        }
+
+
+        beforeTeacher.innerHTML =
+            '<option value="">Seleccionar profesor</option>';
+
+        afterTeacher.innerHTML =
+            '<option value="">Seleccionar profesor</option>';
+
+
+        data.forEach(
+            teacher => {
+
+                const optionBefore =
+                    document.createElement("option");
+
+
+                optionBefore.value =
+                    teacher.id;
+
+
+                optionBefore.textContent =
+                    teacher.full_name;
+
+
+                const optionAfter =
+                    document.createElement("option");
+
+
+                optionAfter.value =
+                    teacher.id;
+
+
+                optionAfter.textContent =
+                    teacher.full_name;
+
+
+                beforeTeacher.appendChild(
+                    optionBefore
+                );
+
+
+                afterTeacher.appendChild(
+                    optionAfter
+                );
+
+            }
+        );
+
     }
 
+    catch (error) {
 
-    beforeTeacher.innerHTML =
-        '<option value="">Seleccionar profesor</option>';
+        console.error(
+            "Error inesperado:",
+            error
+        );
 
-    afterTeacher.innerHTML =
-        '<option value="">Seleccionar profesor</option>';
+        showMessage(
+            "Error cargando profesores."
+        );
 
-
-    data.forEach(teacher => {
-
-        const optionBefore =
-            document.createElement("option");
-
-        optionBefore.value =
-            teacher.id;
-
-        optionBefore.textContent =
-            teacher.full_name;
-
-
-        const optionAfter =
-            document.createElement("option");
-
-        optionAfter.value =
-            teacher.id;
-
-        optionAfter.textContent =
-            teacher.full_name;
-
-
-        beforeTeacher.appendChild(optionBefore);
-
-        afterTeacher.appendChild(optionAfter);
-
-    });
+    }
 
 }
 
 
 // =========================================
-// CARGAR ASIGNACIONES EXISTENTES
+// CARGAR ASIGNACIONES
 // =========================================
 
 async function loadAssignments() {
 
-    const { data, error } =
-        await supabaseClient
-            .from("course_teachers")
-            .select("*")
-            .eq("course_id", courseId);
+    try {
+
+        const { data, error } =
+            await supabaseClient
+                .from("course_teachers")
+                .select("*")
+                .eq("course_id", courseId);
 
 
-    if (error) {
+        if (error) {
 
-        console.error(error);
+            console.error(
+                "Error cargando asignaciones:",
+                error
+            );
 
-        return;
+            return;
+
+        }
+
+
+        data.forEach(
+            assignment => {
+
+                if (
+                    assignment.signature_slot ===
+                    "BEFORE_RECESS"
+                ) {
+
+                    beforeTeacher.value =
+                        assignment.teacher_id;
+
+
+                    setStatus(
+                        beforeStatus,
+                        true
+                    );
+
+                }
+
+
+                if (
+                    assignment.signature_slot ===
+                    "AFTER_RECESS"
+                ) {
+
+                    afterTeacher.value =
+                        assignment.teacher_id;
+
+
+                    setStatus(
+                        afterStatus,
+                        true
+                    );
+
+                }
+
+            }
+        );
+
     }
 
+    catch (error) {
 
-    data.forEach(assignment => {
+        console.error(
+            "Error inesperado:",
+            error
+        );
 
-        if (
-            assignment.signature_slot ===
-            "BEFORE_RECESS"
-        ) {
-
-            beforeTeacher.value =
-                assignment.teacher_id;
-
-            setStatus(
-                beforeStatus,
-                true
-            );
-
-        }
-
-
-        if (
-            assignment.signature_slot ===
-            "AFTER_RECESS"
-        ) {
-
-            afterTeacher.value =
-                assignment.teacher_id;
-
-            setStatus(
-                afterStatus,
-                true
-            );
-
-        }
-
-    });
+    }
 
 }
 
@@ -206,7 +297,15 @@ async function loadAssignments() {
 // ESTADO
 // =========================================
 
-function setStatus(element, assigned) {
+function setStatus(
+    element,
+    assigned
+) {
+
+    if (!element) {
+        return;
+    }
+
 
     if (assigned) {
 
@@ -216,7 +315,9 @@ function setStatus(element, assigned) {
         element.className =
             "status-badge assigned";
 
-    } else {
+    }
+
+    else {
 
         element.textContent =
             "Pendiente";
@@ -233,78 +334,144 @@ function setStatus(element, assigned) {
 // GUARDAR ASIGNACIÓN
 // =========================================
 
-// =========================================
-// GUARDAR ASIGNACIÓN
-// =========================================
-
 async function saveAssignment(
     teacherSelect,
     slot,
     statusElement
 ) {
 
-    const teacherId = teacherSelect.value;
+    try {
+
+        console.log(
+            "Guardando asignación..."
+        );
 
 
-    if (!teacherId) {
-
-        courseMessage.textContent =
-            "Selecciona un profesor.";
-
-        return;
-    }
+        console.log(
+            "Curso:",
+            courseId
+        );
 
 
-    const { error } =
-        await supabaseClient
-            .from("course_teachers")
-            .upsert(
-                {
-                    course_id: courseId,
-                    teacher_id: Number(teacherId),
-                    signature_slot: slot
-                },
-                {
-                    onConflict:
-                        "course_id,signature_slot"
-                }
+        console.log(
+            "Profesor:",
+            teacherSelect.value
+        );
+
+
+        console.log(
+            "Horario:",
+            slot
+        );
+
+
+        const teacherId =
+            teacherSelect.value;
+
+
+        if (!teacherId) {
+
+            showMessage(
+                "Selecciona un profesor."
+            );
+
+            return;
+
+        }
+
+
+        const { data, error } =
+            await supabaseClient
+                .from("course_teachers")
+                .upsert(
+                    {
+                        course_id:
+                            Number(courseId),
+
+                        teacher_id:
+                            Number(teacherId),
+
+                        signature_slot:
+                            slot
+                    },
+                    {
+                        onConflict:
+                            "course_id,signature_slot"
+                    }
+                )
+                .select();
+
+
+        if (error) {
+
+            console.error(
+                "ERROR SUPABASE:",
+                error
             );
 
 
-    if (error) {
+            showMessage(
+                `No se pudo guardar la asignación: ${error.message}`
+            );
+
+
+            return;
+
+        }
+
+
+        console.log(
+            "Asignación guardada:",
+            data
+        );
+
+
+        setStatus(
+            statusElement,
+            true
+        );
+
+
+        showMessage(
+            "Asignación guardada correctamente."
+        );
+
+    }
+
+    catch (error) {
 
         console.error(
-            "Error guardando asignación:",
+            "ERROR JAVASCRIPT:",
             error
         );
 
-        courseMessage.textContent =
-            `No se pudo guardar la asignación: ${error.message}`;
 
-        return;
+        showMessage(
+            `Error: ${error.message}`
+        );
+
     }
 
-
-    setStatus(
-        statusElement,
-        true
-    );
-
-
-    courseMessage.textContent =
-        "Asignación guardada correctamente.";
-
 }
+
 
 // =========================================
 // BOTONES
 // =========================================
 
-document
-    .getElementById("saveBefore")
-    .addEventListener(
+const saveBefore =
+    document.getElementById("saveBefore");
+
+
+const saveAfter =
+    document.getElementById("saveAfter");
+
+
+if (saveBefore) {
+
+    saveBefore.addEventListener(
         "click",
-        () => {
+        function () {
 
             saveAssignment(
                 beforeTeacher,
@@ -315,12 +482,14 @@ document
         }
     );
 
+}
 
-document
-    .getElementById("saveAfter")
-    .addEventListener(
+
+if (saveAfter) {
+
+    saveAfter.addEventListener(
         "click",
-        () => {
+        function () {
 
             saveAssignment(
                 afterTeacher,
@@ -330,6 +499,8 @@ document
 
         }
     );
+
+}
 
 
 // =========================================
