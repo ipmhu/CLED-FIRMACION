@@ -501,19 +501,176 @@ finishButton.addEventListener(
         }
 
 
-        const signatureImage =
-            canvas.toDataURL(
-                "image/png"
-            );
-
-
-        console.log(
-            "Firma capturada correctamente."
-        );
+        finishButton.disabled =
+            true;
 
 
         signMessage.textContent =
-            "Firma capturada correctamente.";
+            "Guardando firma...";
+
+
+        try {
+
+            // =================================
+            // CONVERTIR CANVAS A PNG
+            // =================================
+
+            const blob =
+                await new Promise(resolve => {
+
+                    canvas.toBlob(
+                        resolve,
+                        "image/png"
+                    );
+
+                });
+
+
+            if (!blob) {
+
+                throw new Error(
+                    "No se pudo preparar la firma."
+                );
+
+            }
+
+
+            // =================================
+            // NOMBRE DEL ARCHIVO
+            // =================================
+
+            const fileName =
+                `${token}_${Date.now()}.png`;
+
+
+            const filePath =
+                `firmas/${fileName}`;
+
+
+            // =================================
+            // SUBIR FIRMA
+            // =================================
+
+            signMessage.textContent =
+                "Subiendo firma...";
+
+
+            const { error: uploadError } =
+                await supabaseClient
+                    .storage
+                    .from("signatures")
+                    .upload(
+                        filePath,
+                        blob,
+                        {
+                            contentType:
+                                "image/png",
+
+                            upsert: false
+                        }
+                    );
+
+
+            if (uploadError) {
+
+                console.error(
+                    uploadError
+                );
+
+                throw new Error(
+                    `No se pudo guardar la firma: ${uploadError.message}`
+                );
+
+            }
+
+
+            // =================================
+            // COMPLETAR FIRMA
+            // =================================
+
+            signMessage.textContent =
+                "Confirmando firma...";
+
+
+            const {
+                data,
+                error
+            } =
+                await supabaseClient.rpc(
+                    "complete_signature",
+                    {
+                        p_token:
+                            token,
+
+                        p_signature_path:
+                            filePath
+                    }
+                );
+
+
+            if (error) {
+
+                console.error(
+                    error
+                );
+
+                throw new Error(
+                    error.message
+                );
+
+            }
+
+
+            if (
+                !data ||
+                !data.success
+            ) {
+
+                throw new Error(
+                    data?.message ||
+                    "No se pudo completar la firma."
+                );
+
+            }
+
+
+            // =================================
+            // ÉXITO
+            // =================================
+
+            signMessage.textContent =
+                "✓ Firma realizada correctamente.";
+
+            finishButton.textContent =
+                "FIRMADO";
+
+            finishButton.disabled =
+                true;
+
+
+            clearButton.disabled =
+                true;
+
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "Error completando firma:",
+                error
+            );
+
+
+            signMessage.textContent =
+                error.message ||
+                "No se pudo completar la firma.";
+
+
+            finishButton.disabled =
+                false;
+
+        }
 
     }
 );
