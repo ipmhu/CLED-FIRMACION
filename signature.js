@@ -156,41 +156,30 @@ async function createSignatureSession() {
 
 function generateQR(token) {
 
-const signingURL =
-    `https://ipmhu.github.io/sign.html?token=${encodeURIComponent(token)}`;
-
+    const signingURL =
+        `https://ipmhu.github.io/CLED-FIRMACION/sign.html?token=${encodeURIComponent(token)}`;
 
     console.log("URL DEL QR:", signingURL);
 
-
     qrContainer.innerHTML = "";
-
 
     new QRCode(
         qrContainer,
         {
             text: signingURL,
-
             width: 240,
-
             height: 240,
-
-            correctLevel:
-                QRCode.CorrectLevel.M
+            correctLevel: QRCode.CorrectLevel.M
         }
     );
-
 
     sessionStatus.textContent =
         "Esperando firma";
 
-
     signatureMessage.textContent =
         "Escanea este código QR desde el celular del profesor.";
 
-
     listenForSignature();
-
 }
 
 
