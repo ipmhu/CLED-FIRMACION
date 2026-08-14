@@ -156,106 +156,196 @@ async function openSignatureConfigurator() {
 
 
 // =========================================
-// RENDERIZAR PDF
+// RENDERIZAR PDF CON PDF.JS
 // =========================================
 
-async function renderConfigurationPDF(
-    pdfUrl
-) {
+async function renderConfigurationPDF(pdfUrl) {
 
     pdfConfigScroll.innerHTML =
-        "";
+        `<div class="loading">
+            Descargando PDF...
+        </div>`;
 
 
-    pdfDocument =
-        await pdfjsLib.getDocument(
-            pdfUrl
-        ).promise;
+    try {
+
+        // Descargar el PDF
+        const response =
+            await fetch(pdfUrl);
 
 
-    for (
-        let pageNumber = 1;
-        pageNumber <= pdfDocument.numPages;
-        pageNumber++
-    ) {
+        if (!response.ok) {
 
-        const page =
-            await pdfDocument.getPage(
-                pageNumber
+            throw new Error(
+                `No se pudo descargar el PDF. HTTP ${response.status}`
             );
 
-
-        const scale = 1.2;
-
-
-        const viewport =
-            page.getViewport({
-                scale
-            });
+        }
 
 
-        const pageContainer =
-            document.createElement(
-                "div"
+        // Convertir a ArrayBuffer
+        const pdfData =
+            await response.arrayBuffer();
+
+
+        if (!pdfData || pdfData.byteLength === 0) {
+
+            throw new Error(
+                "El PDF descargado está vacío."
             );
 
-
-        pageContainer.className =
-            "pdf-config-page";
+        }
 
 
-        pageContainer.dataset.page =
-            pageNumber;
-
-
-        const canvas =
-            document.createElement(
-                "canvas"
-            );
-
-
-        canvas.width =
-            viewport.width;
-
-        canvas.height =
-            viewport.height;
-
-
-        canvas.dataset.pageWidth =
-            viewport.width;
-
-        canvas.dataset.pageHeight =
-            viewport.height;
-
-
-        pageContainer.appendChild(
-            canvas
+        console.log(
+            "PDF descargado:",
+            pdfData.byteLength,
+            "bytes"
         );
 
 
-        pdfConfigScroll.appendChild(
-            pageContainer
+        // Cargar PDF.js
+        pdfDocument =
+            await pdfjsLib
+                .getDocument({
+                    data: pdfData
+                })
+                .promise;
+
+
+        console.log(
+            "Páginas del PDF:",
+            pdfDocument.numPages
         );
 
 
-        const context =
-            canvas.getContext(
-                "2d"
+        pdfConfigScroll.innerHTML =
+            "";
+
+
+        // Renderizar todas las páginas
+        for (
+            let pageNumber = 1;
+            pageNumber <= pdfDocument.numPages;
+            pageNumber++
+        ) {
+
+            const page =
+                await pdfDocument.getPage(
+                    pageNumber
+                );
+
+
+            const scale =
+                1.2;
+
+
+            const viewport =
+                page.getViewport({
+                    scale: scale
+                });
+
+
+            const pageContainer =
+                document.createElement(
+                    "div"
+                );
+
+
+            pageContainer.className =
+                "pdf-config-page";
+
+
+            pageContainer.dataset.page =
+                pageNumber;
+
+
+            pageContainer.style.width =
+                `${viewport.width}px`;
+
+
+            pageContainer.style.height =
+                `${viewport.height}px`;
+
+
+            const canvas =
+                document.createElement(
+                    "canvas"
+                );
+
+
+            canvas.width =
+                viewport.width;
+
+
+            canvas.height =
+                viewport.height;
+
+
+            canvas.style.width =
+                `${viewport.width}px`;
+
+
+            canvas.style.height =
+                `${viewport.height}px`;
+
+
+            pageContainer.appendChild(
+                canvas
             );
 
 
-        await page.render({
-            canvasContext:
-                context,
+            pdfConfigScroll.appendChild(
+                pageContainer
+            );
 
-            viewport:
-                viewport
-        }).promise;
+
+            const context =
+                canvas.getContext(
+                    "2d"
+                );
+
+
+            await page.render({
+
+                canvasContext:
+                    context,
+
+                viewport:
+                    viewport
+
+            }).promise;
+
+        }
+
+
+        console.log(
+            "PDF renderizado correctamente."
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "ERROR COMPLETO CARGANDO PDF:",
+            error
+        );
+
+
+        pdfConfigScroll.innerHTML =
+            `<div class="error-message">
+                No se pudo cargar el PDF.
+                <br><br>
+                ${error.message}
+            </div>`;
+
+
+        throw error;
 
     }
 
 }
-
 
 // =========================================
 // CARGAR POSICIONES EXISTENTES
