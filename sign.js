@@ -1,18 +1,12 @@
-// sign.js
-
-
 // =========================================
-// TOKEN
+// SIGN.JS
 // =========================================
 
-const params =
-    new URLSearchParams(
-        window.location.search
-    );
+const params = new URLSearchParams(
+    window.location.search
+);
 
-
-const token =
-    params.get("token");
+const token = params.get("token");
 
 
 // =========================================
@@ -20,381 +14,219 @@ const token =
 // =========================================
 
 const documentName =
-    document.getElementById(
-        "documentName"
-    );
+    document.getElementById("documentName");
 
 const courseName =
-    document.getElementById(
-        "courseName"
-    );
+    document.getElementById("courseName");
 
 const teacherName =
-    document.getElementById(
-        "teacherName"
-    );
+    document.getElementById("teacherName");
 
 const signatureSlot =
-    document.getElementById(
-        "signatureSlot"
-    );
+    document.getElementById("signatureSlot");
 
 const signMessage =
-    document.getElementById(
-        "signMessage"
-    );
+    document.getElementById("signMessage");
 
 const continueButton =
-    document.getElementById(
-        "continueButton"
-    );
+    document.getElementById("continueButton");
 
 
 // =========================================
-// VERIFICAR SESIÓN
+// DIAGNÓSTICO
+// =========================================
+
+function showError(message) {
+
+    signMessage.innerHTML = `
+        <strong>Error:</strong><br><br>
+        ${message}
+    `;
+
+}
+
+
+// =========================================
+// CARGAR SESIÓN
 // =========================================
 
 async function loadSession() {
 
-    signMessage.innerHTML =
-        "Verificando sesión...";
+    try {
+
+        signMessage.textContent =
+            "1. Iniciando...";
 
 
-    if (!token) {
+        if (!token) {
 
-        signMessage.innerHTML =
-            "<strong>Error:</strong> No se recibió ningún token.";
+            showError(
+                "No se recibió ningún token en la URL."
+            );
 
-        return;
+            return;
 
-    }
-
-
-    signMessage.innerHTML =
-        "Token recibido. Consultando Supabase...";
+        }
 
 
-    const { data, error } =
-        await supabaseClient.rpc(
-            "get_signature_session",
-            {
-                p_token: token
-            }
-        );
+        signMessage.textContent =
+            "2. Token recibido correctamente.";
 
 
-    if (error) {
+        if (
+            typeof supabaseClient ===
+            "undefined"
+        ) {
+
+            showError(
+                "supabaseClient no está definido. Revisa supabase.js."
+            );
+
+            return;
+
+        }
+
+
+        signMessage.textContent =
+            "3. Conectando con Supabase...";
+
+
+        const { data, error } =
+            await supabaseClient.rpc(
+                "get_signature_session",
+                {
+                    p_token: token
+                }
+            );
+
+
+        signMessage.textContent =
+            "4. Respuesta recibida de Supabase.";
+
+
+        if (error) {
+
+            showError(`
+                Código: ${error.code || "N/A"}<br>
+                Mensaje: ${error.message || "N/A"}<br>
+                Detalles: ${error.details || "N/A"}
+            `);
+
+            return;
+
+        }
+
+
+        if (!data) {
+
+            showError(
+                "Supabase no encontró la sesión."
+            );
+
+            return;
+
+        }
+
+
+        signMessage.textContent =
+            "5. Sesión encontrada.";
+
+
+        if (data.status !== "PENDING") {
+
+            showError(
+                `La sesión no está pendiente. Estado: ${data.status}`
+            );
+
+            return;
+
+        }
+
+
+        const expiresAt =
+            new Date(data.expires_at);
+
+
+        if (new Date() > expiresAt) {
+
+            showError(
+                "Esta sesión ha expirado."
+            );
+
+            return;
+
+        }
+
+
+        // =====================================
+        // DATOS
+        // =====================================
+
+        const signature =
+            data.signature;
+
+        const document =
+            signature.document;
+
+        const course =
+            document.course;
+
+        const teacher =
+            signature.teacher;
+
+
+        documentName.textContent =
+            document.name ||
+            "Sin documento";
+
+
+        courseName.textContent =
+            course
+                ? `${course.name} ${course.section || ""}`
+                : "Sin curso";
+
+
+        teacherName.textContent =
+            teacher
+                ? teacher.full_name
+                : "Profesor";
+
+
+        signatureSlot.textContent =
+            signature.signature_slot ===
+            "BEFORE_RECESS"
+
+                ? "Antes del primer receso"
+
+                : "Después del primer receso";
+
+
+        signMessage.textContent =
+            "Sesión válida. Puedes continuar.";
+
+
+        continueButton.disabled =
+            false;
+
+
+        continueButton.onclick = function () {
+
+            window.location.href =
+                `sign-document.html?token=${encodeURIComponent(token)}`;
+
+        };
+
+
+    } catch (error) {
 
         console.error(error);
 
-        signMessage.innerHTML = `
-            <strong>Error de Supabase:</strong><br><br>
-
-            Código: ${error.code || "N/A"}<br>
-
-            Mensaje: ${error.message || "N/A"}<br>
-
-            Detalles: ${error.details || "N/A"}<br>
-
-            Sugerencia: ${error.hint || "N/A"}
-        `;
-
-        return;
-    }
-
-
-    if (!data) {
-
-        signMessage.innerHTML =
-            "<strong>Error:</strong> Supabase no encontró esta sesión.";
-
-        return;
+        showError(`
+            Error inesperado:<br><br>
+            ${error.message || error}
+        `);
 
     }
-
-
-    signMessage.innerHTML =
-        "Sesión encontrada. Verificando datos...";
-
-
-    if (data.status !== "PENDING") {
-
-        signMessage.innerHTML =
-            `Esta sesión no está disponible. Estado: ${data.status}`;
-
-        return;
-
-    }
-
-
-    const expiresAt =
-        new Date(data.expires_at);
-
-
-    if (new Date() > expiresAt) {
-
-        signMessage.innerHTML =
-            "Esta sesión de firma ha expirado.";
-
-        return;
-
-    }
-
-
-    const signature =
-        data.signature;
-
-
-    const document =
-        signature.document;
-
-
-    const course =
-        document.course;
-
-
-    const teacher =
-        signature.teacher;
-
-
-    documentName.textContent =
-        document.name || "Sin documento";
-
-
-    courseName.textContent =
-        course
-            ? `${course.name} ${course.section || ""}`
-            : "Sin curso";
-
-
-    teacherName.textContent =
-        teacher
-            ? teacher.full_name
-            : "Profesor";
-
-
-    signatureSlot.textContent =
-        signature.signature_slot ===
-        "BEFORE_RECESS"
-
-            ? "Antes del primer receso"
-
-            : "Después del primer receso";
-
-
-    signMessage.textContent =
-        "Sesión válida. Puedes continuar.";
-
-
-    continueButton.disabled =
-        false;
-
-
-    continueButton.onclick =
-        () => {
-
-            window.location.href =
-                `sign-document.html?token=${encodeURIComponent(token)}`;
-
-        };
-
-}
-
-    // =====================================
-    // COMPROBAR ESTADO
-    // =====================================
-
-    if (data.status !== "PENDING") {
-
-        signMessage.textContent =
-            "Esta sesión de firma ya no está disponible.";
-
-        return;
-
-    }
-
-
-    // =====================================
-    // COMPROBAR EXPIRACIÓN
-    // =====================================
-
-    const expiresAt =
-        new Date(data.expires_at);
-
-
-    if (new Date() > expiresAt) {
-
-        signMessage.textContent =
-            "Esta sesión de firma ha expirado.";
-
-        return;
-
-    }
-
-
-    const signature =
-        data.signature;
-
-
-    const document =
-        signature.document;
-
-
-    const course =
-        document.course;
-
-
-    const teacher =
-        signature.teacher;
-
-
-    // =====================================
-    // MOSTRAR INFORMACIÓN
-    // =====================================
-
-    documentName.textContent =
-        document.name;
-
-
-    courseName.textContent =
-        course
-            ? `${course.name} ${course.section || ""}`
-            : "Sin curso";
-
-
-    teacherName.textContent =
-        teacher
-            ? teacher.full_name
-            : "Profesor";
-
-
-    signatureSlot.textContent =
-        signature.signature_slot ===
-        "BEFORE_RECESS"
-
-            ? "Antes del primer receso"
-
-            : "Después del primer receso";
-
-
-    signMessage.textContent =
-        "Sesión válida. Puedes continuar.";
-
-
-    continueButton.disabled =
-        false;
-
-
-    continueButton.onclick =
-        () => {
-
-            window.location.href =
-                `sign-document.html?token=${encodeURIComponent(token)}`;
-
-        };
-
-}
-
-
-    // =====================================
-    // COMPROBAR ESTADO
-    // =====================================
-
-    if (
-        data.status !== "PENDING"
-    ) {
-
-        signMessage.textContent =
-            "Esta sesión de firma ya no está disponible.";
-
-        return;
-
-    }
-
-
-    // =====================================
-    // COMPROBAR EXPIRACIÓN
-    // =====================================
-
-    const expiresAt =
-        new Date(
-            data.expires_at
-        );
-
-
-    if (
-        new Date() >
-        expiresAt
-    ) {
-
-        signMessage.textContent =
-            "Esta sesión de firma ha expirado.";
-
-        return;
-
-    }
-
-
-    const signature =
-        data.document_signatures;
-
-
-    const document =
-        signature.documents;
-
-
-    const course =
-        document.courses;
-
-
-    const teacher =
-        signature.teachers;
-
-
-    // =====================================
-    // MOSTRAR INFORMACIÓN
-    // =====================================
-
-    documentName.textContent =
-        document.name;
-
-
-    courseName.textContent =
-        course
-            ? `${course.name} ${course.section || ""}`
-            : "Sin curso";
-
-
-    teacherName.textContent =
-        teacher
-            ? teacher.full_name
-            : "Profesor";
-
-
-    signatureSlot.textContent =
-        signature.signature_slot ===
-        "BEFORE_RECESS"
-
-            ? "Antes del primer receso"
-
-            : "Después del primer receso";
-
-
-    signMessage.textContent =
-        "Sesión válida. Puedes continuar.";
-
-
-    continueButton.disabled =
-        false;
-
-
-    continueButton.onclick =
-        () => {
-
-            window.location.href =
-                `sign-document.html?token=${token}`;
-
-        };
 
 }
 
