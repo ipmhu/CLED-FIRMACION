@@ -342,6 +342,26 @@ async function saveAssignment(
 
     try {
 
+        const {
+    data: {
+        user
+    }
+} = await supabaseClient.auth.getUser();
+
+console.log(
+    "USUARIO ACTUAL:",
+    user
+);
+
+if (!user) {
+
+    showMessage(
+        "No hay una sesión de usuario activa."
+    );
+
+    return;
+}
+
         console.log(
             "Guardando asignación..."
         );
