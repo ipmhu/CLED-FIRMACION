@@ -78,33 +78,57 @@ configureSignaturesButton.addEventListener(
 
 async function openSignatureConfigurator() {
 
-    signatureConfigurator.classList.remove(
-        "hidden"
-    );
-
-
-    configMessage.textContent =
-        "Cargando documento...";
-
-
     try {
+
+        configurationModal.classList.remove("hidden");
+
+        configurationMessage.textContent =
+            "Cargando documento...";
+
+
+        // =========================================
+        // OBTENER DOCUMENTO
+        // =========================================
 
         const { data, error } =
             await supabaseClient
                 .from("documents")
-                .select(
-                    "original_file_path"
-                )
+                .select("*")
                 .eq("id", documentId)
                 .single();
 
 
         if (error) {
 
-            throw error;
+            console.error(error);
+
+            configurationMessage.textContent =
+                "No se pudo cargar el documento.";
+
+            return;
 
         }
 
+
+        if (!data.original_file_path) {
+
+            configurationMessage.textContent =
+                "El documento no tiene un archivo PDF asociado.";
+
+            return;
+
+        }
+
+
+        console.log(
+            "Ruta del PDF:",
+            data.original_file_path
+        );
+
+
+        // =========================================
+        // CREAR URL FIRMADA
+        // =========================================
 
         const {
             data: signedData,
@@ -121,21 +145,43 @@ async function openSignatureConfigurator() {
 
         if (signedError) {
 
-            throw signedError;
+            console.error(
+                "Error creando URL:",
+                signedError
+            );
+
+            configurationMessage.textContent =
+                "No se pudo generar la URL del PDF.";
+
+            return;
 
         }
 
+
+        console.log(
+            "URL PDF:",
+            signedData.signedUrl
+        );
+
+
+        // =========================================
+        // RENDERIZAR PDF
+        // =========================================
 
         await renderConfigurationPDF(
             signedData.signedUrl
         );
 
 
+        // =========================================
+        // CARGAR POSICIONES EXISTENTES
+        // =========================================
+
         await loadExistingSignaturePositions();
 
 
-        configMessage.textContent =
-            "Selecciona una firma y arrástrala al lugar deseado.";
+        configurationMessage.textContent =
+            "Selecciona dónde colocar cada firma.";
 
     }
 
@@ -146,14 +192,12 @@ async function openSignatureConfigurator() {
             error
         );
 
-
-        configMessage.textContent =
-            "No se pudo cargar el PDF.";
+        configurationMessage.textContent =
+            `No se pudo cargar el configurador: ${error.message}`;
 
     }
 
 }
-
 
 // =========================================
 // RENDERIZAR PDF CON PDF.JS
