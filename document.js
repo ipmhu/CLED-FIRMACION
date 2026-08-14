@@ -128,6 +128,12 @@ async function loadDocument() {
 
 async function loadSignatures() {
 
+    signatureContainer.innerHTML =
+        `<div class="loading">
+            Cargando firmas...
+        </div>`;
+
+
     const { data, error } =
         await supabaseClient
             .from("document_signatures")
@@ -141,9 +147,18 @@ async function loadSignatures() {
             .order("id");
 
 
+    console.log(
+        "FIRMAS RECIBIDAS:",
+        data
+    );
+
+
     if (error) {
 
-        console.error(error);
+        console.error(
+            "ERROR CARGANDO FIRMAS:",
+            error
+        );
 
         signatureContainer.innerHTML =
             `<p class="error-message">
@@ -154,7 +169,7 @@ async function loadSignatures() {
     }
 
 
-    if (!data.length) {
+    if (!data || !data.length) {
 
         signatureContainer.innerHTML =
             `<div class="empty-state">
@@ -165,11 +180,18 @@ async function loadSignatures() {
     }
 
 
-    signatureContainer.innerHTML =
-        "";
+    signatureContainer.innerHTML = "";
 
 
     data.forEach(signature => {
+
+        console.log(
+            "Firma:",
+            signature.id,
+            "Estado:",
+            signature.status
+        );
+
 
         const isBefore =
             signature.signature_slot ===
@@ -197,6 +219,9 @@ async function loadSignatures() {
                 ? teacher.full_name
                 : "Profesor no asignado";
 
+
+        // IMPORTANTE:
+        // Tu base de datos utiliza COMPLETED
 
         const isSigned =
             signature.status ===
