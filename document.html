@@ -14,6 +14,157 @@
 
     <link rel="stylesheet" href="styles.css">
 
+    <style>
+
+        /* =====================================
+           CONFIGURADOR DE FIRMAS
+        ===================================== */
+
+        .signature-config-button {
+            margin-top: 15px;
+        }
+
+
+        .signature-configurator {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+        }
+
+
+        .signature-configurator.hidden {
+            display: none;
+        }
+
+
+        .config-toolbar {
+            background: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 10px rgba(0,0,0,.15);
+        }
+
+
+        .config-toolbar h2 {
+            margin: 0 20px 0 0;
+        }
+
+
+        .config-toolbar button {
+            padding: 10px 15px;
+            border: 0;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+
+        .signature-tool.active {
+            outline: 3px solid #2563eb;
+        }
+
+
+        .save-position-button {
+            margin-left: auto;
+        }
+
+
+        .config-message {
+            width: 100%;
+            margin: 5px 0 0;
+            font-size: 14px;
+        }
+
+
+        .pdf-config-scroll {
+            flex: 1;
+            overflow: auto;
+            padding: 30px;
+            background: #e5e7eb;
+        }
+
+
+        .pdf-config-page {
+            position: relative;
+            margin: 0 auto 30px;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,.2);
+            width: fit-content;
+        }
+
+
+        .pdf-config-page canvas {
+            display: block;
+        }
+
+
+        .signature-marker {
+            position: absolute;
+            width: 180px;
+            height: 70px;
+            border: 3px dashed #2563eb;
+            background: rgba(37, 99, 235, 0.12);
+            border-radius: 8px;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            user-select: none;
+            touch-action: none;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+
+        .signature-marker.before {
+            border-color: #2563eb;
+            background: rgba(37, 99, 235, 0.12);
+        }
+
+
+        .signature-marker.after {
+            border-color: #16a34a;
+            background: rgba(22, 163, 74, 0.12);
+        }
+
+
+        .signature-marker strong {
+            font-size: 13px;
+        }
+
+
+        .signature-marker small {
+            display: block;
+            margin-top: 4px;
+        }
+
+
+        .close-config-button {
+            background: #dc2626;
+            color: white;
+        }
+
+
+        @media (max-width: 700px) {
+
+            .pdf-config-scroll {
+                padding: 10px;
+            }
+
+            .save-position-button {
+                margin-left: 0;
+            }
+
+        }
+
+    </style>
+
 </head>
 
 
@@ -66,7 +217,6 @@
     </section>
 
 
-
     <!-- VISOR -->
 
     <section class="pdf-section">
@@ -93,6 +243,32 @@
 
     </section>
 
+
+    <!-- CONFIGURAR FIRMAS -->
+
+    <section class="signature-section">
+
+        <div class="section-title">
+
+            <h2>
+                Configuración de firmas
+            </h2>
+
+            <p>
+                Selecciona dónde aparecerá cada firma en el documento.
+            </p>
+
+        </div>
+
+
+        <button
+            id="configureSignaturesButton"
+            class="signature-config-button"
+        >
+            📍 Configurar posiciones de firma
+        </button>
+
+    </section>
 
 
     <!-- FIRMAS -->
@@ -127,9 +303,79 @@
 </main>
 
 
+<!-- =========================================
+     CONFIGURADOR
+========================================= -->
+
+<div
+    id="signatureConfigurator"
+    class="signature-configurator hidden"
+>
+
+    <div class="config-toolbar">
+
+        <h2>
+            Configurar firmas
+        </h2>
+
+
+        <button
+            id="selectBeforeSignature"
+            class="signature-tool before"
+        >
+            FIRMA 1
+        </button>
+
+
+        <button
+            id="selectAfterSignature"
+            class="signature-tool after"
+        >
+            FIRMA 2
+        </button>
+
+
+        <button
+            id="saveSignaturePositions"
+            class="save-position-button"
+        >
+            💾 Guardar posiciones
+        </button>
+
+
+        <button
+            id="closeSignatureConfigurator"
+            class="close-config-button"
+        >
+            Cerrar
+        </button>
+
+
+        <p
+            id="configMessage"
+            class="config-message"
+        >
+            Selecciona una firma y arrástrala al lugar deseado.
+        </p>
+
+    </div>
+
+
+    <div
+        id="pdfConfigScroll"
+        class="pdf-config-scroll"
+    ></div>
+
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="supabase.js"></script>
+
+<!-- PDF.JS -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <script src="document.js"></script>
 
