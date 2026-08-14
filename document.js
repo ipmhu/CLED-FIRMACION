@@ -1,4 +1,9 @@
 // =========================================
+// DOCUMENT.JS
+// =========================================
+
+
+// =========================================
 // ID DEL DOCUMENTO
 // =========================================
 
@@ -17,7 +22,7 @@ if (!documentId) {
         "documents.html";
 
     throw new Error(
-        "No se recibió documentId"
+        "No se recibió documentId."
     );
 
 }
@@ -57,20 +62,26 @@ const documentMessage =
         "documentMessage"
     );
 
+
+// =========================================
+// DOCUMENTO FIRMADO
+// =========================================
+
 const signedDocumentContainer =
-    document.getElementById("signedDocumentContainer");
+    document.getElementById(
+        "signedDocumentContainer"
+    );
 
 const viewSignedDocumentButton =
-    document.getElementById("viewSignedDocumentButton");
-
-const signedDocumentContainer =
-    document.getElementById("signedDocumentContainer");
-
-const viewSignedDocumentButton =
-    document.getElementById("viewSignedDocumentButton");
+    document.getElementById(
+        "viewSignedDocumentButton"
+    );
 
 const signedDocumentMessage =
-    document.getElementById("signedDocumentMessage");
+    document.getElementById(
+        "signedDocumentMessage"
+    );
+
 
 // =========================================
 // ELEMENTOS DEL CONFIGURADOR
@@ -121,16 +132,18 @@ const configMessage =
 // VARIABLES
 // =========================================
 
-let pdfDocument = null;
+let pdfDocument =
+    null;
 
-let signatureMarkers = {};
+let signatureMarkers =
+    {};
 
 let selectedSignatureSlot =
     "BEFORE_RECESS";
 
 
 // =========================================
-// PDF.JS
+// CONFIGURAR PDF.JS
 // =========================================
 
 if (
@@ -150,106 +163,131 @@ if (
 
 async function loadDocument() {
 
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .from("documents")
-            .select(`
-                *,
-                courses (
-                    name,
-                    section
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("documents")
+                .select(`
+                    *,
+                    courses (
+                        name,
+                        section
+                    )
+                `)
+                .eq(
+                    "id",
+                    documentId
                 )
-            `)
-            .eq(
-                "id",
-                documentId
-            )
-            .single();
+                .single();
 
 
-    if (error) {
+        if (error) {
+
+            console.error(
+                "Error cargando documento:",
+                error
+            );
+
+            documentTitle.textContent =
+                "Documento no encontrado";
+
+            documentMessage.textContent =
+                error.message;
+
+            return;
+
+        }
+
+
+        // =====================================
+        // INFORMACIÓN
+        // =====================================
+
+        documentTitle.textContent =
+            data.name ||
+            "Sin nombre";
+
+
+        const course =
+            data.courses;
+
+
+        courseName.textContent =
+            course
+                ? `${course.name} ${course.section || ""}`
+                : "Sin curso";
+
+
+        updateDocumentStatus(
+            data.status
+        );
+
+
+        // =====================================
+        // PDF ORIGINAL
+        // =====================================
+
+        if (
+            !data.original_file_path
+        ) {
+
+            documentMessage.textContent =
+                "El documento no tiene un archivo PDF asociado.";
+
+            return;
+
+        }
+
+
+        const {
+            data: signedData,
+            error: signedError
+        } =
+            await supabaseClient
+                .storage
+                .from("documents")
+                .createSignedUrl(
+                    data.original_file_path,
+                    3600
+                );
+
+
+        if (signedError) {
+
+            console.error(
+                "Error creando URL del PDF:",
+                signedError
+            );
+
+            documentMessage.textContent =
+                "No se pudo abrir el PDF.";
+
+            return;
+
+        }
+
+
+        pdfViewer.src =
+            signedData.signedUrl;
+
+
+    }
+
+    catch (error) {
 
         console.error(
-            "Error cargando documento:",
+            "Error inesperado cargando documento:",
             error
         );
 
         documentTitle.textContent =
-            "Documento no encontrado";
-
-        return;
+            "Error cargando documento";
 
     }
-
-
-    documentTitle.textContent =
-        data.name;
-
-
-    const course =
-        data.courses;
-
-
-    courseName.textContent =
-        course
-            ? `${course.name} ${course.section || ""}`
-            : "Sin curso";
-
-
-    updateDocumentStatus(
-        data.status
-    );
-
-
-    // =====================================
-    // PDF
-    // =====================================
-
-    if (
-        !data.original_file_path
-    ) {
-
-        documentMessage.textContent =
-            "El documento no tiene un archivo PDF asociado.";
-
-        return;
-
-    }
-
-
-    const {
-        data: signedData,
-        error: signedError
-    } =
-        await supabaseClient
-            .storage
-            .from("documents")
-            .createSignedUrl(
-                data.original_file_path,
-                3600
-            );
-
-
-    if (signedError) {
-
-        console.error(
-            "Error creando URL:",
-            signedError
-        );
-
-        documentMessage.textContent =
-            "No se pudo abrir el PDF.";
-
-        return;
-
-    }
-
-
-    pdfViewer.src =
-        signedData.signedUrl;
 
 }
 
@@ -260,155 +298,193 @@ async function loadDocument() {
 
 async function loadSignatures() {
 
-    signatureContainer.innerHTML =
-        `<div class="loading">
+    signatureContainer.innerHTML = `
+        <div class="loading">
             Cargando firmas...
-        </div>`;
+        </div>
+    `;
 
 
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .from("document_signatures")
-            .select(`
-                *,
-                teachers (
-                    full_name
-                )
-            `)
-            .eq(
-                "document_id",
-                documentId
-            )
-            .order("id");
+    try {
 
-
-    if (error) {
-
-        console.error(
-            "Error cargando firmas:",
+        const {
+            data,
             error
-        );
+        } =
+            await supabaseClient
+                .from("document_signatures")
+                .select(`
+                    *,
+                    teachers (
+                        full_name
+                    )
+                `)
+                .eq(
+                    "document_id",
+                    documentId
+                )
+                .order("id");
+
+
+        if (error) {
+
+            console.error(
+                "Error cargando firmas:",
+                error
+            );
+
+            signatureContainer.innerHTML = `
+                <p class="error-message">
+                    No se pudieron cargar las firmas.
+                </p>
+            `;
+
+            return;
+
+        }
+
+
+        if (
+            !data ||
+            data.length === 0
+        ) {
+
+            signatureContainer.innerHTML = `
+                <p>
+                    Este documento no tiene firmas configuradas.
+                </p>
+            `;
+
+            return;
+
+        }
+
 
         signatureContainer.innerHTML =
-            `<p class="error-message">
-                No se pudieron cargar las firmas.
-            </p>`;
+            "";
 
-        return;
+
+        data.forEach(
+            signature => {
+
+                const isBefore =
+                    signature.signature_slot ===
+                    "BEFORE_RECESS";
+
+
+                const title =
+                    isBefore
+                        ? "Antes del primer receso"
+                        : "Después del primer receso";
+
+
+                const number =
+                    isBefore
+                        ? "FIRMA 1"
+                        : "FIRMA 2";
+
+
+                const teacher =
+                    signature.teachers;
+
+
+                const teacherName =
+                    teacher
+                        ? teacher.full_name
+                        : "Profesor no asignado";
+
+
+                const isSigned =
+                    signature.status ===
+                    "COMPLETED";
+
+
+                const card =
+                    document.createElement(
+                        "article"
+                    );
+
+
+                card.className =
+                    "document-signature-card";
+
+
+                card.innerHTML = `
+
+                    <div class="signature-card-info">
+
+                        <span class="slot-number">
+                            ${number}
+                        </span>
+
+                        <h3>
+                            ${title}
+                        </h3>
+
+                        <p>
+                            ${teacherName}
+                        </p>
+
+                    </div>
+
+
+                    <div class="signature-card-action">
+
+                        <span class="
+                            status-badge
+                            ${isSigned
+                                ? "assigned"
+                                : "pending"}
+                        ">
+
+                            ${isSigned
+                                ? "Firmado"
+                                : "Pendiente"}
+
+                        </span>
+
+
+                        ${
+                            isSigned
+                                ? ""
+                                : `
+                                    <button
+                                        type="button"
+                                        onclick="startSignature(${signature.id})"
+                                    >
+                                        Iniciar firma
+                                    </button>
+                                `
+                        }
+
+                    </div>
+
+                `;
+
+
+                signatureContainer.appendChild(
+                    card
+                );
+
+            }
+        );
 
     }
 
+    catch (error) {
 
-    signatureContainer.innerHTML =
-        "";
+        console.error(
+            "Error inesperado cargando firmas:",
+            error
+        );
 
+        signatureContainer.innerHTML = `
+            <p class="error-message">
+                No se pudieron cargar las firmas.
+            </p>
+        `;
 
-    data.forEach(
-        signature => {
-
-            const isBefore =
-                signature.signature_slot ===
-                "BEFORE_RECESS";
-
-
-            const title =
-                isBefore
-                    ? "Antes del primer receso"
-                    : "Después del primer receso";
-
-
-            const number =
-                isBefore
-                    ? "FIRMA 1"
-                    : "FIRMA 2";
-
-
-            const teacher =
-                signature.teachers;
-
-
-            const teacherName =
-                teacher
-                    ? teacher.full_name
-                    : "Profesor no asignado";
-
-
-            const isSigned =
-                signature.status ===
-                "COMPLETED";
-
-
-            const card =
-                document.createElement(
-                    "article"
-                );
-
-
-            card.className =
-                "document-signature-card";
-
-
-            card.innerHTML = `
-
-                <div class="signature-card-info">
-
-                    <span class="slot-number">
-                        ${number}
-                    </span>
-
-                    <h3>
-                        ${title}
-                    </h3>
-
-                    <p>
-                        ${teacherName}
-                    </p>
-
-                </div>
-
-
-                <div class="signature-card-action">
-
-                    <span class="
-                        status-badge
-                        ${isSigned
-                            ? "assigned"
-                            : "pending"}
-                    ">
-
-                        ${isSigned
-                            ? "Firmado"
-                            : "Pendiente"}
-
-                    </span>
-
-
-                    ${
-                        isSigned
-                            ? ""
-                            : `
-                                <button
-                                    onclick="startSignature(${signature.id})"
-                                >
-                                    Iniciar firma
-                                </button>
-                            `
-                    }
-
-                </div>
-
-            `;
-
-
-            signatureContainer.appendChild(
-                card
-            );
-
-        }
-    );
+    }
 
 }
 
@@ -428,7 +504,7 @@ function startSignature(
 
 
 // =========================================
-// ESTADO DOCUMENTO
+// ESTADO DEL DOCUMENTO
 // =========================================
 
 function updateDocumentStatus(
@@ -465,7 +541,8 @@ function updateDocumentStatus(
 
     documentStatus.textContent =
         statusNames[status] ||
-        status;
+        status ||
+        "Pendiente";
 
 
     documentStatus.className =
@@ -481,10 +558,16 @@ function updateDocumentStatus(
 // ABRIR CONFIGURADOR
 // =========================================
 
-configureSignaturesButton.addEventListener(
-    "click",
-    openSignatureConfigurator
-);
+if (
+    configureSignaturesButton
+) {
+
+    configureSignaturesButton.addEventListener(
+        "click",
+        openSignatureConfigurator
+    );
+
+}
 
 
 async function openSignatureConfigurator() {
@@ -533,7 +616,7 @@ async function openSignatureConfigurator() {
 
 
         // =====================================
-        // URL FIRMADA
+        // URL TEMPORAL DEL PDF
         // =====================================
 
         const {
@@ -554,12 +637,6 @@ async function openSignatureConfigurator() {
             throw signedError;
 
         }
-
-
-        console.log(
-            "URL configurador:",
-            signedData.signedUrl
-        );
 
 
         await renderConfigurationPDF(
@@ -598,133 +675,179 @@ async function renderConfigurationPDF(
     pdfUrl
 ) {
 
-    pdfConfigScroll.innerHTML =
-        `<div class="loading">
+    pdfConfigScroll.innerHTML = `
+        <div class="loading">
             Cargando PDF...
-        </div>`;
+        </div>
+    `;
 
 
-    const response =
-        await fetch(pdfUrl);
+    try {
+
+        const response =
+            await fetch(pdfUrl);
 
 
-    if (!response.ok) {
+        if (!response.ok) {
 
-        throw new Error(
-            `No se pudo descargar el PDF. HTTP ${response.status}`
-        );
+            throw new Error(
+                `No se pudo descargar el PDF. HTTP ${response.status}`
+            );
+
+        }
+
+
+        const pdfData =
+            await response.arrayBuffer();
+
+
+        if (
+            !pdfData ||
+            pdfData.byteLength === 0
+        ) {
+
+            throw new Error(
+                "El PDF descargado está vacío."
+            );
+
+        }
+
+
+        pdfDocument =
+            await pdfjsLib
+                .getDocument({
+                    data: pdfData
+                })
+                .promise;
+
+
+        pdfConfigScroll.innerHTML =
+            "";
+
+
+        // =====================================
+        // RENDERIZAR TODAS LAS PÁGINAS
+        // =====================================
+
+        for (
+            let pageNumber = 1;
+            pageNumber <=
+            pdfDocument.numPages;
+            pageNumber++
+        ) {
+
+            const page =
+                await pdfDocument.getPage(
+                    pageNumber
+                );
+
+
+            const scale =
+                1.2;
+
+
+            const viewport =
+                page.getViewport({
+                    scale
+                });
+
+
+            const pageContainer =
+                document.createElement(
+                    "div"
+                );
+
+
+            pageContainer.className =
+                "pdf-config-page";
+
+
+            pageContainer.dataset.page =
+                pageNumber;
+
+
+            pageContainer.style.width =
+                `${viewport.width}px`;
+
+
+            pageContainer.style.height =
+                `${viewport.height}px`;
+
+
+            const canvas =
+                document.createElement(
+                    "canvas"
+                );
+
+
+            canvas.width =
+                viewport.width;
+
+
+            canvas.height =
+                viewport.height;
+
+
+            canvas.style.width =
+                `${viewport.width}px`;
+
+
+            canvas.style.height =
+                `${viewport.height}px`;
+
+
+            pageContainer.appendChild(
+                canvas
+            );
+
+
+            pdfConfigScroll.appendChild(
+                pageContainer
+            );
+
+
+            const context =
+                canvas.getContext(
+                    "2d"
+                );
+
+
+            await page.render({
+
+                canvasContext:
+                    context,
+
+                viewport:
+                    viewport
+
+            }).promise;
+
+        }
 
     }
 
+    catch (error) {
 
-    const pdfData =
-        await response.arrayBuffer();
-
-
-    pdfDocument =
-        await pdfjsLib
-            .getDocument({
-                data: pdfData
-            })
-            .promise;
-
-
-    pdfConfigScroll.innerHTML =
-        "";
-
-
-    for (
-        let pageNumber = 1;
-        pageNumber <=
-        pdfDocument.numPages;
-        pageNumber++
-    ) {
-
-        const page =
-            await pdfDocument.getPage(
-                pageNumber
-            );
-
-
-        const scale =
-            1.2;
-
-
-        const viewport =
-            page.getViewport({
-                scale
-            });
-
-
-        const pageContainer =
-            document.createElement(
-                "div"
-            );
-
-
-        pageContainer.className =
-            "pdf-config-page";
-
-
-        pageContainer.dataset.page =
-            pageNumber;
-
-
-        pageContainer.style.width =
-            `${viewport.width}px`;
-
-
-        pageContainer.style.height =
-            `${viewport.height}px`;
-
-
-        const canvas =
-            document.createElement(
-                "canvas"
-            );
-
-
-        canvas.width =
-            viewport.width;
-
-
-        canvas.height =
-            viewport.height;
-
-
-        canvas.style.width =
-            `${viewport.width}px`;
-
-
-        canvas.style.height =
-            `${viewport.height}px`;
-
-
-        pageContainer.appendChild(
-            canvas
+        console.error(
+            "Error renderizando PDF:",
+            error
         );
 
 
-        pdfConfigScroll.appendChild(
-            pageContainer
-        );
+        pdfConfigScroll.innerHTML = `
+            <div class="error-message">
+                <strong>
+                    No se pudo cargar el PDF.
+                </strong>
+
+                <br><br>
+
+                ${error.message}
+            </div>
+        `;
 
 
-        const context =
-            canvas.getContext(
-                "2d"
-            );
-
-
-        await page.render({
-
-            canvasContext:
-                context,
-
-            viewport:
-                viewport
-
-        }).promise;
+        throw error;
 
     }
 
@@ -732,7 +855,7 @@ async function renderConfigurationPDF(
 
 
 // =========================================
-// CARGAR POSICIONES
+// CARGAR POSICIONES EXISTENTES
 // =========================================
 
 async function loadExistingSignaturePositions() {
@@ -774,6 +897,11 @@ async function loadExistingSignaturePositions() {
         {};
 
 
+    if (!data) {
+        return;
+    }
+
+
     data.forEach(
         signature => {
 
@@ -797,154 +925,179 @@ async function loadExistingSignaturePositions() {
 // SELECCIONAR FIRMA 1
 // =========================================
 
-selectBeforeSignature.addEventListener(
-    "click",
-    () => {
+if (
+    selectBeforeSignature
+) {
 
-        selectedSignatureSlot =
-            "BEFORE_RECESS";
+    selectBeforeSignature.addEventListener(
+        "click",
+        () => {
 
-
-        selectBeforeSignature.classList.add(
-            "active"
-        );
-
-
-        selectAfterSignature.classList.remove(
-            "active"
-        );
+            selectedSignatureSlot =
+                "BEFORE_RECESS";
 
 
-        configMessage.textContent =
-            "FIRMA 1 seleccionada. Haz clic en el documento.";
+            selectBeforeSignature.classList.add(
+                "active"
+            );
 
-    }
-);
+
+            selectAfterSignature.classList.remove(
+                "active"
+            );
+
+
+            configMessage.textContent =
+                "FIRMA 1 seleccionada. Haz clic en el documento.";
+
+        }
+    );
+
+}
 
 
 // =========================================
 // SELECCIONAR FIRMA 2
 // =========================================
 
-selectAfterSignature.addEventListener(
-    "click",
-    () => {
+if (
+    selectAfterSignature
+) {
 
-        selectedSignatureSlot =
-            "AFTER_RECESS";
+    selectAfterSignature.addEventListener(
+        "click",
+        () => {
 
-
-        selectAfterSignature.classList.add(
-            "active"
-        );
-
-
-        selectBeforeSignature.classList.remove(
-            "active"
-        );
+            selectedSignatureSlot =
+                "AFTER_RECESS";
 
 
-        configMessage.textContent =
-            "FIRMA 2 seleccionada. Haz clic en el documento.";
-
-    }
-);
-
-
-// =========================================
-// COLOCAR FIRMA
-// =========================================
-
-pdfConfigScroll.addEventListener(
-    "click",
-    event => {
-
-        const page =
-            event.target.closest(
-                ".pdf-config-page"
+            selectAfterSignature.classList.add(
+                "active"
             );
 
 
-        if (!page) return;
+            selectBeforeSignature.classList.remove(
+                "active"
+            );
 
-
-        if (
-            event.target.closest(
-                ".signature-marker"
-            )
-        ) return;
-
-
-        const existing =
-            signatureMarkers[
-                selectedSignatureSlot
-            ];
-
-
-        if (existing) {
 
             configMessage.textContent =
-                "Esta firma ya está colocada. Puedes arrastrarla.";
-
-            return;
+                "FIRMA 2 seleccionada. Haz clic en el documento.";
 
         }
+    );
+
+}
 
 
-        const rect =
-            page.getBoundingClientRect();
+// =========================================
+// COLOCAR FIRMA CON CLIC
+// =========================================
+
+if (
+    pdfConfigScroll
+) {
+
+    pdfConfigScroll.addEventListener(
+        "click",
+        event => {
+
+            const page =
+                event.target.closest(
+                    ".pdf-config-page"
+                );
 
 
-        const x =
-            Math.max(
-                0,
-                event.clientX -
-                rect.left -
-                90
-            );
+            if (!page) {
+                return;
+            }
 
 
-        const y =
-            Math.max(
-                0,
-                event.clientY -
-                rect.top -
-                35
-            );
+            if (
+                event.target.closest(
+                    ".signature-marker"
+                )
+            ) {
+
+                return;
+
+            }
 
 
-        createSignatureMarker({
-
-            id: null,
-
-            signature_slot:
-                selectedSignatureSlot,
-
-            signature_page:
-                Number(
-                    page.dataset.page
-                ),
-
-            signature_x:
-                x,
-
-            signature_y:
-                y,
-
-            signature_width:
-                180,
-
-            signature_height:
-                70
-
-        });
+            const existing =
+                signatureMarkers[
+                    selectedSignatureSlot
+                ];
 
 
-        configMessage.textContent =
-            "Firma colocada. Puedes arrastrarla.";
+            if (existing) {
 
-    }
-);
+                configMessage.textContent =
+                    "Esta firma ya está colocada. Puedes arrastrarla.";
+
+                return;
+
+            }
+
+
+            const rect =
+                page.getBoundingClientRect();
+
+
+            const x =
+                Math.max(
+                    0,
+                    event.clientX -
+                    rect.left -
+                    90
+                );
+
+
+            const y =
+                Math.max(
+                    0,
+                    event.clientY -
+                    rect.top -
+                    35
+                );
+
+
+            createSignatureMarker({
+
+                id:
+                    null,
+
+                signature_slot:
+                    selectedSignatureSlot,
+
+                signature_page:
+                    Number(
+                        page.dataset.page
+                    ),
+
+                signature_x:
+                    x,
+
+                signature_y:
+                    y,
+
+                signature_width:
+                    180,
+
+                signature_height:
+                    70
+
+            });
+
+
+            configMessage.textContent =
+                "Firma colocada. Puedes arrastrarla para ajustar su posición.";
+
+        }
+    );
+
+}
 
 
 // =========================================
@@ -974,7 +1127,16 @@ function createSignatureMarker(
         );
 
 
-    if (!page) return;
+    if (!page) {
+
+        console.warn(
+            "No se encontró la página:",
+            signature.signature_page
+        );
+
+        return;
+
+    }
 
 
     const marker =
@@ -1013,20 +1175,44 @@ function createSignatureMarker(
     `;
 
 
+    const width =
+        Number(
+            signature.signature_width
+        ) || 180;
+
+
+    const height =
+        Number(
+            signature.signature_height
+        ) || 70;
+
+
+    const x =
+        Number(
+            signature.signature_x
+        ) || 20;
+
+
+    const y =
+        Number(
+            signature.signature_y
+        ) || 20;
+
+
     marker.style.width =
-        `${Number(signature.signature_width) || 180}px`;
+        `${width}px`;
 
 
     marker.style.height =
-        `${Number(signature.signature_height) || 70}px`;
+        `${height}px`;
 
 
     marker.style.left =
-        `${Number(signature.signature_x) || 20}px`;
+        `${x}px`;
 
 
     marker.style.top =
-        `${Number(signature.signature_y) || 20}px`;
+        `${y}px`;
 
 
     page.appendChild(
@@ -1048,7 +1234,7 @@ function createSignatureMarker(
 
 
 // =========================================
-// ARRASTRAR
+// ARRASTRAR MARCADOR
 // =========================================
 
 function makeMarkerDraggable(
@@ -1102,7 +1288,9 @@ function makeMarkerDraggable(
         "pointermove",
         event => {
 
-            if (!dragging) return;
+            if (!dragging) {
+                return;
+            }
 
 
             const page =
@@ -1181,6 +1369,17 @@ function makeMarkerDraggable(
         }
     );
 
+
+    marker.addEventListener(
+        "pointercancel",
+        event => {
+
+            dragging =
+                false;
+
+        }
+    );
+
 }
 
 
@@ -1188,10 +1387,16 @@ function makeMarkerDraggable(
 // GUARDAR POSICIONES
 // =========================================
 
-saveSignaturePositions.addEventListener(
-    "click",
-    saveAllSignaturePositions
-);
+if (
+    saveSignaturePositions
+) {
+
+    saveSignaturePositions.addEventListener(
+        "click",
+        saveAllSignaturePositions
+    );
+
+}
 
 
 async function saveAllSignaturePositions() {
@@ -1202,22 +1407,55 @@ async function saveAllSignaturePositions() {
 
     try {
 
+        const slots = [
+            "BEFORE_RECESS",
+            "AFTER_RECESS"
+        ];
+
+
         for (
-            const slot of [
-                "BEFORE_RECESS",
-                "AFTER_RECESS"
-            ]
+            const slot of slots
         ) {
 
             const marker =
-                signatureMarkers[slot];
+                signatureMarkers[
+                    slot
+                ];
 
 
-            if (!marker) continue;
+            if (!marker) {
+                continue;
+            }
 
 
             const page =
                 marker.parentElement;
+
+
+            const pageNumber =
+                Number(
+                    page.dataset.page
+                );
+
+
+            const x =
+                parseFloat(
+                    marker.style.left
+                );
+
+
+            const y =
+                parseFloat(
+                    marker.style.top
+                );
+
+
+            const width =
+                marker.offsetWidth;
+
+
+            const height =
+                marker.offsetHeight;
 
 
             const {
@@ -1230,25 +1468,19 @@ async function saveAllSignaturePositions() {
                     .update({
 
                         signature_page:
-                            Number(
-                                page.dataset.page
-                            ),
+                            pageNumber,
 
                         signature_x:
-                            parseFloat(
-                                marker.style.left
-                            ),
+                            x,
 
                         signature_y:
-                            parseFloat(
-                                marker.style.top
-                            ),
+                            y,
 
                         signature_width:
-                            marker.offsetWidth,
+                            width,
 
                         signature_height:
-                            marker.offsetHeight
+                            height
 
                     })
                     .eq(
@@ -1278,8 +1510,10 @@ async function saveAllSignaturePositions() {
     catch (error) {
 
         console.error(
+            "Error guardando posiciones:",
             error
         );
+
 
         configMessage.textContent =
             `No se pudieron guardar las posiciones: ${error.message}`;
@@ -1293,20 +1527,271 @@ async function saveAllSignaturePositions() {
 // CERRAR CONFIGURADOR
 // =========================================
 
-closeSignatureConfigurator.addEventListener(
-    "click",
-    () => {
+if (
+    closeSignatureConfigurator
+) {
 
-        signatureConfigurator.classList.add(
-            "hidden"
-        );
+    closeSignatureConfigurator.addEventListener(
+        "click",
+        () => {
 
-    }
-);
+            signatureConfigurator.classList.add(
+                "hidden"
+            );
+
+        }
+    );
+
+}
 
 
 // =========================================
-// TIEMPO REAL
+// CARGAR DOCUMENTO FIRMADO
+// =========================================
+
+async function loadSignedDocument() {
+
+    // Si el HTML no tiene estos elementos,
+    // simplemente no hacemos nada.
+
+    if (
+        !signedDocumentContainer ||
+        !viewSignedDocumentButton
+    ) {
+
+        console.warn(
+            "Elementos del documento firmado no encontrados."
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("documents")
+                .select(
+                    "id, signed_file_path"
+                )
+                .eq(
+                    "id",
+                    documentId
+                )
+                .single();
+
+
+        if (error) {
+
+            console.error(
+                "Error buscando documento firmado:",
+                error
+            );
+
+            signedDocumentContainer.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        // =====================================
+        // NO EXISTE PDF FIRMADO
+        // =====================================
+
+        if (
+            !data ||
+            !data.signed_file_path
+        ) {
+
+            signedDocumentContainer.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        // =====================================
+        // MOSTRAR BOTÓN
+        // =====================================
+
+        signedDocumentContainer.style.display =
+            "block";
+
+
+        if (
+            signedDocumentMessage
+        ) {
+
+            signedDocumentMessage.textContent =
+                "";
+
+        }
+
+
+        // =====================================
+        // BOTÓN
+        // =====================================
+
+        viewSignedDocumentButton.onclick =
+            async function () {
+
+                try {
+
+                    viewSignedDocumentButton.disabled =
+                        true;
+
+
+                    viewSignedDocumentButton.textContent =
+                        "⏳ Abriendo documento...";
+
+
+                    if (
+                        signedDocumentMessage
+                    ) {
+
+                        signedDocumentMessage.textContent =
+                            "Generando acceso al documento firmado...";
+
+                    }
+
+
+                    // =================================
+                    // CREAR URL TEMPORAL
+                    // =================================
+
+                    const {
+                        data: signedData,
+                        error: signedError
+                    } =
+                        await supabaseClient
+                            .storage
+                            .from("documents")
+                            .createSignedUrl(
+                                data.signed_file_path,
+                                3600
+                            );
+
+
+                    if (signedError) {
+
+                        throw signedError;
+
+                    }
+
+
+                    if (
+                        !signedData ||
+                        !signedData.signedUrl
+                    ) {
+
+                        throw new Error(
+                            "No se pudo generar la URL del documento firmado."
+                        );
+
+                    }
+
+
+                    console.log(
+                        "URL documento firmado:",
+                        signedData.signedUrl
+                    );
+
+
+                    // =================================
+                    // ABRIR PDF
+                    // =================================
+
+                    const newWindow =
+                        window.open(
+                            signedData.signedUrl,
+                            "_blank"
+                        );
+
+
+                    if (!newWindow) {
+
+                        throw new Error(
+                            "El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio."
+                        );
+
+                    }
+
+
+                    if (
+                        signedDocumentMessage
+                    ) {
+
+                        signedDocumentMessage.textContent =
+                            "Documento firmado abierto correctamente.";
+
+                    }
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "Error abriendo documento firmado:",
+                        error
+                    );
+
+
+                    if (
+                        signedDocumentMessage
+                    ) {
+
+                        signedDocumentMessage.textContent =
+                            `No se pudo abrir el documento: ${error.message}`;
+
+                    }
+
+                    else {
+
+                        alert(
+                            `No se pudo abrir el documento:\n\n${error.message}`
+                        );
+
+                    }
+
+                }
+
+                finally {
+
+                    viewSignedDocumentButton.disabled =
+                        false;
+
+
+                    viewSignedDocumentButton.textContent =
+                        "📄 Ver documento firmado";
+
+                }
+
+            };
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Error cargando documento firmado:",
+            error
+        );
+
+    }
+
+}
+
+
+// =========================================
+// ACTUALIZACIÓN EN TIEMPO REAL
 // =========================================
 
 function listenForSignatureChanges() {
@@ -1331,7 +1816,7 @@ function listenForSignatureChanges() {
                     `document_id=eq.${documentId}`
 
             },
-            payload => {
+            async payload => {
 
                 console.log(
                     "Firma actualizada:",
@@ -1339,9 +1824,11 @@ function listenForSignatureChanges() {
                 );
 
 
-loadSignatures();
-loadDocument();
-loadSignedDocument();
+                await loadSignatures();
+
+                await loadDocument();
+
+                await loadSignedDocument();
 
             }
         )
@@ -1356,443 +1843,28 @@ loadSignedDocument();
 
 async function init() {
 
-    await loadDocument();
-
-    await loadSignatures();
-
-    await loadSignedDocument();
-
-    listenForSignatureChanges();
-
-}
-
-// =========================================
-// DOCUMENTO FIRMADO
-// =========================================
-
-async function loadSignedDocument() {
-
     try {
 
-        const { data, error } =
-            await supabaseClient
-                .from("documents")
-                .select("id, signed_file_path, status")
-                .eq("id", documentId)
-                .single();
+        await loadDocument();
 
+        await loadSignatures();
 
-        if (error) {
+        await loadSignedDocument();
 
-            console.error(
-                "Error buscando documento firmado:",
-                error
-            );
-
-            return;
-
-        }
-
-
-        // Todavía no existe PDF firmado
-        if (
-            !data.signed_file_path ||
-            data.status !== "COMPLETED"
-        ) {
-
-            signedDocumentContainer.style.display =
-                "none";
-
-            return;
-
-        }
-
-
-        // Mostrar botón
-        signedDocumentContainer.style.display =
-            "block";
-
-
-        viewSignedDocumentButton.onclick =
-            async function () {
-
-                try {
-
-                    viewSignedDocumentButton.disabled =
-                        true;
-
-                    signedDocumentMessage.textContent =
-                        "Abriendo documento firmado...";
-
-
-                    const {
-                        data: signedData,
-                        error: signedError
-                    } =
-                        await supabaseClient
-                            .storage
-                            .from("documents")
-                            .createSignedUrl(
-                                data.signed_file_path,
-                                3600
-                            );
-
-
-                    if (signedError) {
-
-                        console.error(
-                            "Error creando URL:",
-                            signedError
-                        );
-
-                        throw new Error(
-                            signedError.message
-                        );
-
-                    }
-
-
-                    if (
-                        !signedData ||
-                        !signedData.signedUrl
-                    ) {
-
-                        throw new Error(
-                            "No se recibió la URL del documento firmado."
-                        );
-
-                    }
-
-
-                    console.log(
-                        "URL documento firmado:",
-                        signedData.signedUrl
-                    );
-
-
-                    // Abrir en una pestaña nueva
-                    window.open(
-                        signedData.signedUrl,
-                        "_blank"
-                    );
-
-
-                    signedDocumentMessage.textContent =
-                        "Documento firmado abierto.";
-
-                }
-
-                catch (error) {
-
-                    console.error(
-                        "Error abriendo documento firmado:",
-                        error
-                    );
-
-                    signedDocumentMessage.textContent =
-                        `No se pudo abrir el documento: ${error.message}`;
-
-                }
-
-                finally {
-
-                    viewSignedDocumentButton.disabled =
-                        false;
-
-                }
-
-            };
-
+        listenForSignatureChanges();
 
     }
 
     catch (error) {
 
         console.error(
-            "Error cargando documento firmado:",
+            "Error iniciando document.js:",
             error
         );
 
     }
 
 }
-
-
-
-// =========================================
-// DOCUMENTO FIRMADO
-// =========================================
-
-async function loadSignedDocument() {
-
-    try {
-
-        const { data, error } =
-            await supabaseClient
-                .from("documents")
-                .select("signed_file_path")
-                .eq("id", documentId)
-                .single();
-
-
-        if (error) {
-
-            console.error(
-                "Error obteniendo PDF firmado:",
-                error
-            );
-
-            return;
-
-        }
-
-
-        // Todavía no existe PDF firmado
-        if (!data || !data.signed_file_path) {
-
-            signedDocumentContainer.style.display =
-                "none";
-
-            return;
-
-        }
-
-
-        // Mostrar botón
-        signedDocumentContainer.style.display =
-            "block";
-
-
-        viewSignedDocumentButton.onclick =
-            async () => {
-
-                viewSignedDocumentButton.disabled =
-                    true;
-
-                viewSignedDocumentButton.textContent =
-                    "Abriendo documento...";
-
-
-                try {
-
-                    const {
-                        data: signedData,
-                        error: signedError
-                    } =
-                        await supabaseClient
-                            .storage
-                            .from("documents")
-                            .createSignedUrl(
-                                data.signed_file_path,
-                                3600
-                            );
-
-
-                    if (signedError) {
-
-                        throw signedError;
-
-                    }
-
-
-                    window.open(
-                        signedData.signedUrl,
-                        "_blank"
-                    );
-
-
-                }
-
-                catch (error) {
-
-                    console.error(
-                        "Error abriendo PDF firmado:",
-                        error
-                    );
-
-                    alert(
-                        "No se pudo abrir el documento firmado."
-                    );
-
-                }
-
-                finally {
-
-                    viewSignedDocumentButton.disabled =
-                        false;
-
-                    viewSignedDocumentButton.textContent =
-                        "📄 Ver documento firmado";
-
-                }
-
-            };
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Error cargando documento firmado:",
-            error
-        );
-
-    }
-
-}
-
-// =========================================
-// VER DOCUMENTO FIRMADO
-// =========================================
-
-const viewSignedDocumentButton =
-    document.getElementById("viewSignedDocumentButton");
-
-if (viewSignedDocumentButton) {
-
-    viewSignedDocumentButton.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                viewSignedDocumentButton.disabled = true;
-
-                viewSignedDocumentButton.textContent =
-                    "⏳ Abriendo documento...";
-
-
-                // =====================================
-                // OBTENER DOCUMENTO
-                // =====================================
-
-                const {
-                    data: documentData,
-                    error: documentError
-                } =
-                    await supabaseClient
-                        .from("documents")
-                        .select(
-                            "id, signed_file_path"
-                        )
-                        .eq(
-                            "id",
-                            documentId
-                        )
-                        .single();
-
-
-                if (documentError) {
-
-                    throw documentError;
-
-                }
-
-
-                if (
-                    !documentData ||
-                    !documentData.signed_file_path
-                ) {
-
-                    throw new Error(
-                        "Este documento todavía no tiene un PDF firmado."
-                    );
-
-                }
-
-
-                console.log(
-                    "Ruta del documento firmado:",
-                    documentData.signed_file_path
-                );
-
-
-                // =====================================
-                // CREAR URL FIRMADA
-                // =====================================
-
-                const {
-                    data: signedData,
-                    error: signedError
-                } =
-                    await supabaseClient
-                        .storage
-                        .from("documents")
-                        .createSignedUrl(
-                            documentData.signed_file_path,
-                            3600
-                        );
-
-
-                if (signedError) {
-
-                    throw signedError;
-
-                }
-
-
-                if (
-                    !signedData ||
-                    !signedData.signedUrl
-                ) {
-
-                    throw new Error(
-                        "No se pudo generar la URL del documento firmado."
-                    );
-
-                }
-
-
-                console.log(
-                    "URL documento firmado:",
-                    signedData.signedUrl
-                );
-
-
-                // =====================================
-                // ABRIR PDF
-                // =====================================
-
-                window.open(
-                    signedData.signedUrl,
-                    "_blank"
-                );
-
-
-            }
-
-            catch (error) {
-
-                console.error(
-                    "Error abriendo documento firmado:",
-                    error
-                );
-
-
-                alert(
-                    "No se pudo abrir el documento firmado:\n\n" +
-                    error.message
-                );
-
-            }
-
-            finally {
-
-                viewSignedDocumentButton.disabled =
-                    false;
-
-                viewSignedDocumentButton.textContent =
-                    "📄 Ver documento firmado";
-
-            }
-
-        }
-    );
-
-}
-
 
 
 init();
-
-
