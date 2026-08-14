@@ -200,7 +200,7 @@ async function loadSignatures() {
 
         const isSigned =
             signature.status ===
-            "SIGNED";
+            "COMPLETED";
 
 
         const card =
