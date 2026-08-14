@@ -132,7 +132,7 @@ async function loadSession() {
             "5. Sesión encontrada.";
 
 
-        if (data.status !== "PENDING") {
+        if (data.status !== "WAITING") {
 
             showError(
                 `La sesión no está pendiente. Estado: ${data.status}`
