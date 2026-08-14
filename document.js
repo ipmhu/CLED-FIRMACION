@@ -1481,3 +1481,153 @@ async function loadSignedDocument() {
     }
 
 }
+
+// =========================================
+// VER DOCUMENTO FIRMADO
+// =========================================
+
+const viewSignedDocumentButton =
+    document.getElementById("viewSignedDocumentButton");
+
+if (viewSignedDocumentButton) {
+
+    viewSignedDocumentButton.addEventListener(
+        "click",
+        async () => {
+
+            try {
+
+                viewSignedDocumentButton.disabled = true;
+
+                viewSignedDocumentButton.textContent =
+                    "⏳ Abriendo documento...";
+
+
+                // =====================================
+                // OBTENER DOCUMENTO
+                // =====================================
+
+                const {
+                    data: documentData,
+                    error: documentError
+                } =
+                    await supabaseClient
+                        .from("documents")
+                        .select(
+                            "id, signed_file_path"
+                        )
+                        .eq(
+                            "id",
+                            documentId
+                        )
+                        .single();
+
+
+                if (documentError) {
+
+                    throw documentError;
+
+                }
+
+
+                if (
+                    !documentData ||
+                    !documentData.signed_file_path
+                ) {
+
+                    throw new Error(
+                        "Este documento todavía no tiene un PDF firmado."
+                    );
+
+                }
+
+
+                console.log(
+                    "Ruta del documento firmado:",
+                    documentData.signed_file_path
+                );
+
+
+                // =====================================
+                // CREAR URL FIRMADA
+                // =====================================
+
+                const {
+                    data: signedData,
+                    error: signedError
+                } =
+                    await supabaseClient
+                        .storage
+                        .from("documents")
+                        .createSignedUrl(
+                            documentData.signed_file_path,
+                            3600
+                        );
+
+
+                if (signedError) {
+
+                    throw signedError;
+
+                }
+
+
+                if (
+                    !signedData ||
+                    !signedData.signedUrl
+                ) {
+
+                    throw new Error(
+                        "No se pudo generar la URL del documento firmado."
+                    );
+
+                }
+
+
+                console.log(
+                    "URL documento firmado:",
+                    signedData.signedUrl
+                );
+
+
+                // =====================================
+                // ABRIR PDF
+                // =====================================
+
+                window.open(
+                    signedData.signedUrl,
+                    "_blank"
+                );
+
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error abriendo documento firmado:",
+                    error
+                );
+
+
+                alert(
+                    "No se pudo abrir el documento firmado:\n\n" +
+                    error.message
+                );
+
+            }
+
+            finally {
+
+                viewSignedDocumentButton.disabled =
+                    false;
+
+                viewSignedDocumentButton.textContent =
+                    "📄 Ver documento firmado";
+
+            }
+
+        }
+    );
+
+}
