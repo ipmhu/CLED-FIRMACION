@@ -57,6 +57,12 @@ const documentMessage =
         "documentMessage"
     );
 
+const signedDocumentContainer =
+    document.getElementById("signedDocumentContainer");
+
+const viewSignedDocumentButton =
+    document.getElementById("viewSignedDocumentButton");
+
 
 // =========================================
 // ELEMENTOS DEL CONFIGURADOR
@@ -1352,3 +1358,126 @@ async function init() {
 
 
 init();
+
+
+// =========================================
+// DOCUMENTO FIRMADO
+// =========================================
+
+async function loadSignedDocument() {
+
+    try {
+
+        const { data, error } =
+            await supabaseClient
+                .from("documents")
+                .select("signed_file_path")
+                .eq("id", documentId)
+                .single();
+
+
+        if (error) {
+
+            console.error(
+                "Error obteniendo PDF firmado:",
+                error
+            );
+
+            return;
+
+        }
+
+
+        // Todavía no existe PDF firmado
+        if (!data || !data.signed_file_path) {
+
+            signedDocumentContainer.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        // Mostrar botón
+        signedDocumentContainer.style.display =
+            "block";
+
+
+        viewSignedDocumentButton.onclick =
+            async () => {
+
+                viewSignedDocumentButton.disabled =
+                    true;
+
+                viewSignedDocumentButton.textContent =
+                    "Abriendo documento...";
+
+
+                try {
+
+                    const {
+                        data: signedData,
+                        error: signedError
+                    } =
+                        await supabaseClient
+                            .storage
+                            .from("documents")
+                            .createSignedUrl(
+                                data.signed_file_path,
+                                3600
+                            );
+
+
+                    if (signedError) {
+
+                        throw signedError;
+
+                    }
+
+
+                    window.open(
+                        signedData.signedUrl,
+                        "_blank"
+                    );
+
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "Error abriendo PDF firmado:",
+                        error
+                    );
+
+                    alert(
+                        "No se pudo abrir el documento firmado."
+                    );
+
+                }
+
+                finally {
+
+                    viewSignedDocumentButton.disabled =
+                        false;
+
+                    viewSignedDocumentButton.textContent =
+                        "📄 Ver documento firmado";
+
+                }
+
+            };
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Error cargando documento firmado:",
+            error
+        );
+
+    }
+
+}
