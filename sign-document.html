@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Firmar documento | Firma Digital</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <strong>Firma Digital</strong>
+    </div>
+
+</header>
+
+
+<main class="sign-page">
+
+    <section class="sign-card">
+
+        <p class="eyebrow">
+            FIRMA ELECTRÓNICA
+        </p>
+
+
+        <h1>
+            Firmar documento
+        </h1>
+
+
+        <div class="sign-info">
+
+            <div>
+
+                <span>Documento</span>
+
+                <strong id="documentName">
+                    Cargando...
+                </strong>
+
+            </div>
+
+
+            <div>
+
+                <span>Curso</span>
+
+                <strong id="courseName">
+                    Cargando...
+                </strong>
+
+            </div>
+
+
+            <div>
+
+                <span>Profesor</span>
+
+                <strong id="teacherName">
+                    Cargando...
+                </strong>
+
+            </div>
+
+
+            <div>
+
+                <span>Momento de firma</span>
+
+                <strong id="signatureSlot">
+                    Cargando...
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="signMessage"
+            class="sign-message"
+        >
+            Cargando documento...
+        </div>
+
+
+        <div class="pdf-container">
+
+            <iframe
+                id="pdfViewer"
+                title="Documento PDF"
+            ></iframe>
+
+        </div>
+
+
+        <div
+            id="signatureArea"
+            class="signature-area"
+        >
+
+            <h2>
+                Firma
+            </h2>
+
+            <p>
+                Dibuja tu firma en el área inferior.
+            </p>
+
+
+            <canvas
+                id="signatureCanvas"
+            ></canvas>
+
+
+            <div class="signature-actions">
+
+                <button
+                    id="clearSignature"
+                    class="secondary-button"
+                >
+                    Limpiar
+                </button>
+
+
+                <button
+                    id="finishSignature"
+                    class="sign-button"
+                >
+                    LISTO
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="supabase.js"></script>
+
+<script src="sign-document.js"></script>
+
+</body>
+
+</html>
