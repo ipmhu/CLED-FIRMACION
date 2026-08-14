@@ -252,6 +252,48 @@ async function saveAssignment(
     }
 
 
+    const { error } =
+        await supabaseClient
+            .from("course_teachers")
+            .upsert(
+                {
+                    course_id: courseId,
+                    teacher_id: Number(teacherId),
+                    signature_slot: slot
+                },
+                {
+                    onConflict:
+                        "course_id,signature_slot"
+                }
+            );
+
+
+    if (error) {
+
+        console.error(
+            "Error guardando asignación:",
+            error
+        );
+
+        courseMessage.textContent =
+            `No se pudo guardar la asignación: ${error.message}`;
+
+        return;
+    }
+
+
+    setStatus(
+        statusElement,
+        true
+    );
+
+
+    courseMessage.textContent =
+        "Asignación guardada correctamente.";
+
+}
+
+
     // Determinar la firma correspondiente
     const signatureSlot =
         slot === "BEFORE_RECESS"
