@@ -1,1520 +1,498 @@
-// document.js
+<!DOCTYPE html>
+<html lang="es">
 
+<head>
 
-// =========================================
-// ID DEL DOCUMENTO
-// =========================================
+    <meta charset="UTF-8">
 
-const params =
-    new URLSearchParams(window.location.search);
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-const documentId =
-    params.get("id");
+    <title>Documento | Firma Digital</title>
 
+    <link rel="stylesheet" href="styles.css">
 
-if (!documentId) {
 
-    window.location.href =
-        "documents.html";
+    <style>
 
-}
+        /* =====================================
+           CONFIGURADOR DE FIRMAS
+        ===================================== */
 
-
-// =========================================
-// ELEMENTOS PRINCIPALES
-// =========================================
-
-const documentTitle =
-    document.getElementById("documentTitle");
-
-const courseName =
-    document.getElementById("courseName");
-
-const documentStatus =
-    document.getElementById("documentStatus");
-
-const pdfViewer =
-    document.getElementById("pdfViewer");
-
-const signatureContainer =
-    document.getElementById("signatureContainer");
-
-const documentMessage =
-    document.getElementById("documentMessage");
-
-
-// =========================================
-// ELEMENTOS DEL CONFIGURADOR
-// =========================================
-
-const configureSignaturesButton =
-    document.getElementById(
-        "configureSignaturesButton"
-    );
-
-const signatureConfigurator =
-    document.getElementById(
-        "signatureConfigurator"
-    );
-
-const pdfConfigScroll =
-    document.getElementById(
-        "pdfConfigScroll"
-    );
-
-const selectBeforeSignature =
-    document.getElementById(
-        "selectBeforeSignature"
-    );
-
-const selectAfterSignature =
-    document.getElementById(
-        "selectAfterSignature"
-    );
-
-const saveSignaturePositions =
-    document.getElementById(
-        "saveSignaturePositions"
-    );
-
-const closeSignatureConfigurator =
-    document.getElementById(
-        "closeSignatureConfigurator"
-    );
-
-const configMessage =
-    document.getElementById(
-        "configMessage"
-    );
-
-
-// =========================================
-// VARIABLES DEL CONFIGURADOR
-// =========================================
-
-let pdfDocument = null;
-
-let signatureMarkers = {};
-
-let selectedSignatureSlot =
-    "BEFORE_RECESS";
-
-
-// =========================================
-// CONFIGURAR PDF.JS
-// =========================================
-
-if (
-    typeof pdfjsLib !==
-    "undefined"
-) {
-
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-
-}
-
-
-// =========================================
-// CARGAR DOCUMENTO
-// =========================================
-
-async function loadDocument() {
-
-    const { data, error } =
-        await supabaseClient
-            .from("documents")
-            .select(`
-                *,
-                courses (
-                    name,
-                    section
-                )
-            `)
-            .eq("id", documentId)
-            .single();
-
-
-    if (error) {
-
-        console.error(
-            "Error cargando documento:",
-            error
-        );
-
-        documentTitle.textContent =
-            "Documento no encontrado";
-
-        return;
-
-    }
-
-
-    documentTitle.textContent =
-        data.name;
-
-
-    const course =
-        data.courses;
-
-
-    courseName.textContent =
-        course
-            ? `${course.name} ${course.section || ""}`
-            : "Sin curso";
-
-
-    updateDocumentStatus(
-        data.status
-    );
-
-
-    // =====================================
-    // CREAR URL TEMPORAL DEL PDF
-    // =====================================
-
-    if (!data.original_file_path) {
-
-        documentMessage.textContent =
-            "El documento no tiene un archivo PDF asociado.";
-
-        return;
-
-    }
-
-
-    const {
-        data: signedData,
-        error: signedError
-    } =
-        await supabaseClient
-            .storage
-            .from("documents")
-            .createSignedUrl(
-                data.original_file_path,
-                3600
-            );
-
-
-    if (signedError) {
-
-        console.error(
-            "Error creando URL del PDF:",
-            signedError
-        );
-
-        documentMessage.textContent =
-            "No se pudo abrir el PDF.";
-
-        return;
-
-    }
-
-
-    console.log(
-        "URL del PDF:",
-        signedData.signedUrl
-    );
-
-
-    pdfViewer.src =
-        signedData.signedUrl;
-
-}
-
-
-// =========================================
-// CARGAR FIRMAS
-// =========================================
-
-async function loadSignatures() {
-
-    signatureContainer.innerHTML =
-        `<div class="loading">
-            Cargando firmas...
-        </div>`;
-
-
-    const { data, error } =
-        await supabaseClient
-            .from("document_signatures")
-            .select(`
-                *,
-                teachers (
-                    full_name
-                )
-            `)
-            .eq(
-                "document_id",
-                documentId
-            )
-            .order("id");
-
-
-    if (error) {
-
-        console.error(
-            "Error cargando firmas:",
-            error
-        );
-
-        signatureContainer.innerHTML =
-            `<p class="error-message">
-                No se pudieron cargar las firmas.
-            </p>`;
-
-        return;
-
-    }
-
-
-    if (
-        !data ||
-        !data.length
-    ) {
-
-        signatureContainer.innerHTML =
-            `<div class="empty-state">
-                Este documento no tiene firmas configuradas.
-            </div>`;
-
-        return;
-
-    }
-
-
-    signatureContainer.innerHTML =
-        "";
-
-
-    data.forEach(
-        signature => {
-
-            const isBefore =
-                signature.signature_slot ===
-                "BEFORE_RECESS";
-
-
-            const title =
-                isBefore
-                    ? "Antes del primer receso"
-                    : "Después del primer receso";
-
-
-            const number =
-                isBefore
-                    ? "FIRMA 1"
-                    : "FIRMA 2";
-
-
-            const teacher =
-                signature.teachers;
-
-
-            const teacherName =
-                teacher
-                    ? teacher.full_name
-                    : "Profesor no asignado";
-
-
-            const isSigned =
-                signature.status ===
-                "COMPLETED";
-
-
-            const card =
-                document.createElement(
-                    "article"
-                );
-
-
-            card.className =
-                "document-signature-card";
-
-
-            card.innerHTML = `
-
-                <div class="signature-card-info">
-
-                    <span class="slot-number">
-                        ${number}
-                    </span>
-
-                    <h3>
-                        ${title}
-                    </h3>
-
-                    <p>
-                        ${teacherName}
-                    </p>
-
-                </div>
-
-
-                <div class="signature-card-action">
-
-                    <span class="
-                        status-badge
-                        ${
-                            isSigned
-                                ? "assigned"
-                                : "pending"
-                        }
-                    ">
-
-                        ${
-                            isSigned
-                                ? "Firmado"
-                                : "Pendiente"
-                        }
-
-                    </span>
-
-
-                    ${
-                        isSigned
-
-                            ? ""
-
-                            : `
-
-                            <button
-                                onclick="startSignature(${signature.id})"
-                            >
-                                Iniciar firma
-                            </button>
-
-                            `
-                    }
-
-                </div>
-
-            `;
-
-
-            signatureContainer.appendChild(
-                card
-            );
-
-        }
-    );
-
-}
-
-
-// =========================================
-// INICIAR FIRMA
-// =========================================
-
-function startSignature(
-    signatureId
-) {
-
-    window.location.href =
-        `signature.html?id=${signatureId}`;
-
-}
-
-
-// =========================================
-// ESTADO DEL DOCUMENTO
-// =========================================
-
-function updateDocumentStatus(
-    status
-) {
-
-    const statusNames = {
-
-        PENDING:
-            "Pendiente",
-
-        PARTIALLY_SIGNED:
-            "Firmado parcialmente",
-
-        COMPLETED:
-            "Completado"
-
-    };
-
-
-    const statusClasses = {
-
-        PENDING:
-            "pending",
-
-        PARTIALLY_SIGNED:
-            "partial",
-
-        COMPLETED:
-            "completed"
-
-    };
-
-
-    documentStatus.textContent =
-        statusNames[status] ||
-        status;
-
-
-    documentStatus.className =
-        `status-badge ${
-            statusClasses[status] ||
-            "pending"
-        }`;
-
-}
-
-
-// =========================================
-// ABRIR CONFIGURADOR
-// =========================================
-
-configureSignaturesButton.addEventListener(
-    "click",
-    openSignatureConfigurator
-);
-
-
-async function openSignatureConfigurator() {
-
-    try {
-
-        signatureConfigurator.classList.remove(
-            "hidden"
-        );
-
-
-        configMessage.textContent =
-            "Cargando documento...";
-
-
-        // =====================================
-        // OBTENER DOCUMENTO
-        // =====================================
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from("documents")
-                .select("*")
-                .eq("id", documentId)
-                .single();
-
-
-        if (error) {
-
-            console.error(
-                "Error obteniendo documento:",
-                error
-            );
-
-            configMessage.textContent =
-                "No se pudo cargar el documento.";
-
-            return;
-
+        .signature-config-button {
+            margin-top: 15px;
         }
 
 
-        if (!data.original_file_path) {
-
-            configMessage.textContent =
-                "El documento no tiene un PDF asociado.";
-
-            return;
-
+        .signature-configurator {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
         }
 
 
-        console.log(
-            "Ruta del PDF:",
-            data.original_file_path
-        );
-
-
-        // =====================================
-        // CREAR URL FIRMADA
-        // =====================================
-
-        const {
-            data: signedData,
-            error: signedError
-        } =
-            await supabaseClient
-                .storage
-                .from("documents")
-                .createSignedUrl(
-                    data.original_file_path,
-                    3600
-                );
-
-
-        if (signedError) {
-
-            console.error(
-                "Error creando URL:",
-                signedError
-            );
-
-            configMessage.textContent =
-                "No se pudo generar la URL del PDF.";
-
-            return;
-
+        .signature-configurator.hidden {
+            display: none;
         }
 
 
-        console.log(
-            "URL configurador:",
-            signedData.signedUrl
-        );
+        /* =====================================
+           BARRA DEL CONFIGURADOR
+        ===================================== */
 
-
-        // =====================================
-        // RENDERIZAR PDF
-        // =====================================
-
-        await renderConfigurationPDF(
-            signedData.signedUrl
-        );
-
-
-        // =====================================
-        // CARGAR POSICIONES EXISTENTES
-        // =====================================
-
-        await loadExistingSignaturePositions();
-
-
-        configMessage.textContent =
-            "Selecciona FIRMA 1 o FIRMA 2 y haz clic donde quieras colocarla.";
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Error abriendo configurador:",
-            error
-        );
-
-        configMessage.textContent =
-            `No se pudo cargar el configurador: ${error.message}`;
-
-    }
-
-}
-
-
-// =========================================
-// RENDERIZAR PDF
-// =========================================
-
-async function renderConfigurationPDF(
-    pdfUrl
-) {
-
-    pdfConfigScroll.innerHTML =
-        `<div class="loading">
-            Descargando PDF...
-        </div>`;
-
-
-    try {
-
-        const response =
-            await fetch(pdfUrl);
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `No se pudo descargar el PDF. HTTP ${response.status}`
-            );
-
+        .config-toolbar {
+            background: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
         }
 
 
-        const pdfData =
-            await response.arrayBuffer();
-
-
-        if (
-            !pdfData ||
-            pdfData.byteLength === 0
-        ) {
-
-            throw new Error(
-                "El PDF descargado está vacío."
-            );
-
+        .config-toolbar h2 {
+            margin: 0 20px 0 0;
         }
 
 
-        pdfDocument =
-            await pdfjsLib
-                .getDocument({
-                    data: pdfData
-                })
-                .promise;
-
-
-        console.log(
-            "Páginas:",
-            pdfDocument.numPages
-        );
-
-
-        pdfConfigScroll.innerHTML =
-            "";
-
-
-        // =====================================
-        // RENDERIZAR TODAS LAS PÁGINAS
-        // =====================================
-
-        for (
-            let pageNumber = 1;
-            pageNumber <=
-            pdfDocument.numPages;
-            pageNumber++
-        ) {
-
-            const page =
-                await pdfDocument.getPage(
-                    pageNumber
-                );
-
-
-            const scale =
-                1.2;
-
-
-            const viewport =
-                page.getViewport({
-                    scale
-                });
-
-
-            const pageContainer =
-                document.createElement(
-                    "div"
-                );
-
-
-            pageContainer.className =
-                "pdf-config-page";
-
-
-            pageContainer.dataset.page =
-                pageNumber;
-
-
-            pageContainer.style.width =
-                `${viewport.width}px`;
-
-
-            pageContainer.style.height =
-                `${viewport.height}px`;
-
-
-            const canvas =
-                document.createElement(
-                    "canvas"
-                );
-
-
-            canvas.width =
-                viewport.width;
-
-
-            canvas.height =
-                viewport.height;
-
-
-            canvas.style.width =
-                `${viewport.width}px`;
-
-
-            canvas.style.height =
-                `${viewport.height}px`;
-
-
-            pageContainer.appendChild(
-                canvas
-            );
-
-
-            pdfConfigScroll.appendChild(
-                pageContainer
-            );
-
-
-            const context =
-                canvas.getContext("2d");
-
-
-            await page.render({
-
-                canvasContext:
-                    context,
-
-                viewport:
-                    viewport
-
-            }).promise;
-
+        .config-toolbar button {
+            padding: 10px 15px;
+            border: 0;
+            border-radius: 8px;
+            cursor: pointer;
         }
 
-    }
 
-    catch (error) {
-
-        console.error(
-            "ERROR CARGANDO PDF:",
-            error
-        );
+        .signature-tool.active {
+            outline: 3px solid #2563eb;
+        }
 
 
-        pdfConfigScroll.innerHTML =
-            `<div class="error-message">
-
-                No se pudo cargar el PDF.
-
-                <br><br>
-
-                ${error.message}
-
-            </div>`;
-
-        throw error;
-
-    }
-
-}
+        .save-position-button {
+            margin-left: auto;
+        }
 
 
-// =========================================
-// CARGAR POSICIONES EXISTENTES
-// =========================================
-
-async function loadExistingSignaturePositions() {
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .from("document_signatures")
-            .select(`
-                id,
-                signature_slot,
-                signature_page,
-                signature_x,
-                signature_y,
-                signature_width,
-                signature_height
-            `)
-            .eq(
-                "document_id",
-                documentId
-            );
+        .config-message {
+            width: 100%;
+            margin: 5px 0 0;
+            font-size: 14px;
+        }
 
 
-    if (error) {
+        /* =====================================
+           VISOR DEL CONFIGURADOR
+        ===================================== */
 
-        console.error(
-            "Error cargando posiciones:",
-            error
-        );
-
-        return;
-
-    }
-
-
-    signatureMarkers = {};
+        .pdf-config-scroll {
+            flex: 1;
+            overflow: auto;
+            padding: 30px;
+            background: #e5e7eb;
+        }
 
 
-    data.forEach(
-        signature => {
+        .pdf-config-page {
+            position: relative;
+            margin: 0 auto 30px;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .2);
+        }
 
-            if (
-                signature.signature_page
-            ) {
 
-                createSignatureMarker(
-                    signature
-                );
+        .pdf-config-page canvas {
+            display: block;
+        }
 
+
+        /* =====================================
+           MARCADORES DE FIRMA
+        ===================================== */
+
+        .signature-marker {
+            position: absolute;
+
+            width: 180px;
+            height: 70px;
+
+            border: 3px dashed #2563eb;
+
+            background: rgba(37, 99, 235, 0.12);
+
+            border-radius: 8px;
+
+            cursor: move;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            flex-direction: column;
+
+            text-align: center;
+
+            user-select: none;
+
+            touch-action: none;
+
+            z-index: 10;
+
+            box-sizing: border-box;
+        }
+
+
+        .signature-marker.before {
+            border-color: #2563eb;
+
+            background:
+                rgba(37, 99, 235, 0.12);
+        }
+
+
+        .signature-marker.after {
+            border-color: #16a34a;
+
+            background:
+                rgba(22, 163, 74, 0.12);
+        }
+
+
+        .signature-marker strong {
+            font-size: 13px;
+        }
+
+
+        .signature-marker small {
+            display: block;
+
+            margin-top: 4px;
+        }
+
+
+        /* =====================================
+           CERRAR
+        ===================================== */
+
+        .close-config-button {
+            background: #dc2626;
+
+            color: white;
+        }
+
+
+        /* =====================================
+           RESPONSIVE
+        ===================================== */
+
+        @media (max-width: 700px) {
+
+            .pdf-config-scroll {
+                padding: 10px;
+            }
+
+
+            .save-position-button {
+                margin-left: 0;
             }
 
         }
-    );
 
-}
+    </style>
 
+</head>
 
-// =========================================
-// SELECCIONAR FIRMA 1
-// =========================================
 
-selectBeforeSignature.addEventListener(
-    "click",
-    () => {
+<body>
 
-        selectedSignatureSlot =
-            "BEFORE_RECESS";
 
+<!-- =========================================
+     BARRA SUPERIOR
+========================================= -->
 
-        selectBeforeSignature.classList.add(
-            "active"
-        );
+<header class="topbar">
 
+    <div>
+        <strong>Firma Digital</strong>
+    </div>
 
-        selectAfterSignature.classList.remove(
-            "active"
-        );
 
+    <button
+        onclick="window.location.href='documents.html'"
+    >
+        Volver a documentos
+    </button>
 
-        configMessage.textContent =
-            "FIRMA 1 seleccionada. Haz clic en el documento.";
+</header>
 
-    }
-);
 
 
-// =========================================
-// SELECCIONAR FIRMA 2
-// =========================================
+<!-- =========================================
+     CONTENIDO PRINCIPAL
+========================================= -->
 
-selectAfterSignature.addEventListener(
-    "click",
-    () => {
+<main class="document-page">
 
-        selectedSignatureSlot =
-            "AFTER_RECESS";
 
+    <!-- =====================================
+         INFORMACIÓN DEL DOCUMENTO
+    ====================================== -->
 
-        selectAfterSignature.classList.add(
-            "active"
-        );
-
-
-        selectBeforeSignature.classList.remove(
-            "active"
-        );
-
-
-        configMessage.textContent =
-            "FIRMA 2 seleccionada. Haz clic en el documento.";
-
-    }
-);
-
-
-// =========================================
-// COLOCAR FIRMA CON CLIC
-// =========================================
-
-pdfConfigScroll.addEventListener(
-    "click",
-    event => {
-
-        const page =
-            event.target.closest(
-                ".pdf-config-page"
-            );
-
-
-        if (!page) {
-
-            return;
-
-        }
-
-
-        if (
-            event.target.closest(
-                ".signature-marker"
-            )
-        ) {
-
-            return;
-
-        }
-
-
-        const existing =
-            signatureMarkers[
-                selectedSignatureSlot
-            ];
-
-
-        if (existing) {
-
-            configMessage.textContent =
-                "Esta firma ya está colocada. Puedes arrastrarla.";
-
-            return;
-
-        }
-
-
-        const rect =
-            page.getBoundingClientRect();
-
-
-        const x =
-            event.clientX -
-            rect.left -
-            90;
-
-
-        const y =
-            event.clientY -
-            rect.top -
-            35;
-
-
-        const signature = {
-
-            id:
-                null,
-
-            signature_slot:
-                selectedSignatureSlot,
-
-            signature_page:
-                Number(
-                    page.dataset.page
-                ),
-
-            signature_x:
-                Math.max(
-                    0,
-                    x
-                ),
-
-            signature_y:
-                Math.max(
-                    0,
-                    y
-                ),
-
-            signature_width:
-                180,
-
-            signature_height:
-                70
-
-        };
-
-
-        createSignatureMarker(
-            signature
-        );
-
-
-        configMessage.textContent =
-            "Firma colocada. Puedes arrastrarla para ajustar su posición.";
-
-    }
-);
-
-
-// =========================================
-// CREAR MARCADOR
-// =========================================
-
-function createSignatureMarker(
-    signature
-) {
-
-    const oldMarker =
-        signatureMarkers[
-            signature.signature_slot
-        ];
-
-
-    if (oldMarker) {
-
-        oldMarker.remove();
-
-    }
-
-
-    const page =
-        document.querySelector(
-            `.pdf-config-page[data-page="${signature.signature_page}"]`
-        );
-
-
-    if (!page) {
-
-        console.warn(
-            "No se encontró la página:",
-            signature.signature_page
-        );
-
-        return;
-
-    }
-
-
-    const marker =
-        document.createElement(
-            "div"
-        );
-
-
-    marker.className =
-        "signature-marker";
-
-
-    marker.classList.add(
-
-        signature.signature_slot ===
-        "BEFORE_RECESS"
-
-            ? "before"
-
-            : "after"
-
-    );
-
-
-    marker.innerHTML = `
+    <section class="document-header">
 
         <div>
 
-            <strong>
+            <p class="eyebrow">
+                DOCUMENTO
+            </p>
 
-                ${
-                    signature.signature_slot ===
-                    "BEFORE_RECESS"
 
-                        ? "FIRMA 1"
+            <h1 id="documentTitle">
+                Cargando...
+            </h1>
 
-                        : "FIRMA 2"
 
-                }
-
-            </strong>
-
-            <small>
-                Arrastra aquí
-            </small>
+            <p id="courseName">
+                Cargando curso...
+            </p>
 
         </div>
 
-    `;
 
+        <span
+            id="documentStatus"
+            class="status-badge pending"
+        >
+            Pendiente
+        </span>
 
-    const width =
-        Number(
-            signature.signature_width
-        ) || 180;
+    </section>
 
 
-    const height =
-        Number(
-            signature.signature_height
-        ) || 70;
 
+    <!-- =====================================
+         VISOR PDF
+    ====================================== -->
 
-    marker.style.width =
-        `${width}px`;
+    <section class="pdf-section">
 
+        <div class="section-title">
 
-    marker.style.height =
-        `${height}px`;
+            <h2>
+                Documento
+            </h2>
 
 
-    marker.style.left =
-        `${Number(signature.signature_x) || 20}px`;
+            <p>
+                Lee el documento antes de iniciar una firma.
+            </p>
 
+        </div>
 
-    marker.style.top =
-        `${Number(signature.signature_y) || 20}px`;
 
+        <div class="pdf-viewer">
 
-    page.appendChild(
-        marker
-    );
+            <iframe
+                id="pdfViewer"
+                title="Visor del documento"
+            ></iframe>
 
+        </div>
 
-    signatureMarkers[
-        signature.signature_slot
-    ] =
-        marker;
+    </section>
 
 
-    makeMarkerDraggable(
-        marker,
-        signature.signature_slot
-    );
 
-}
+    <!-- =====================================
+         CONFIGURACIÓN DE FIRMAS
+    ====================================== -->
 
+    <section class="signature-section">
 
-// =========================================
-// ARRASTRAR FIRMA
-// =========================================
+        <div class="section-title">
 
-function makeMarkerDraggable(
-    marker,
-    slot
-) {
+            <h2>
+                Configuración de firmas
+            </h2>
 
-    let dragging =
-        false;
 
-    let offsetX =
-        0;
+            <p>
+                Selecciona dónde aparecerá cada firma en el documento.
+            </p>
 
-    let offsetY =
-        0;
+        </div>
 
 
-    marker.addEventListener(
-        "pointerdown",
-        event => {
+        <button
+            id="configureSignaturesButton"
+            class="signature-config-button"
+        >
+            📍 Configurar posiciones de firma
+        </button>
 
-            event.preventDefault();
+    </section>
 
-            dragging =
-                true;
 
 
-            const rect =
-                marker.getBoundingClientRect();
+    <!-- =====================================
+         FIRMAS REQUERIDAS
+    ====================================== -->
 
+    <section class="signature-section">
 
-            offsetX =
-                event.clientX -
-                rect.left;
+        <div class="section-title">
 
+            <h2>
+                Firmas requeridas
+            </h2>
 
-            offsetY =
-                event.clientY -
-                rect.top;
 
+            <p>
+                Cada profesor puede firmar de forma independiente.
+            </p>
 
-            marker.setPointerCapture(
-                event.pointerId
-            );
+        </div>
 
-        }
-    );
 
+        <div id="signatureContainer">
 
-    marker.addEventListener(
-        "pointermove",
-        event => {
+            <div class="loading">
+                Cargando firmas...
+            </div>
 
-            if (!dragging) {
+        </div>
 
-                return;
+    </section>
 
-            }
 
+    <p id="documentMessage"></p>
 
-            const page =
-                marker.parentElement;
 
+</main>
 
-            const pageRect =
-                page.getBoundingClientRect();
 
 
-            let x =
-                event.clientX -
-                pageRect.left -
-                offsetX;
+<!-- =========================================
+     CONFIGURADOR DE POSICIONES
+========================================= -->
 
+<div
+    id="signatureConfigurator"
+    class="signature-configurator hidden"
+>
 
-            let y =
-                event.clientY -
-                pageRect.top -
-                offsetY;
 
+    <!-- =====================================
+         BARRA DE HERRAMIENTAS
+    ====================================== -->
 
-            x =
-                Math.max(
-                    0,
-                    Math.min(
-                        x,
-                        pageRect.width -
-                        marker.offsetWidth
-                    )
-                );
+    <div class="config-toolbar">
 
 
-            y =
-                Math.max(
-                    0,
-                    Math.min(
-                        y,
-                        pageRect.height -
-                        marker.offsetHeight
-                    )
-                );
+        <h2>
+            Configurar firmas
+        </h2>
 
 
-            marker.style.left =
-                `${x}px`;
+        <!-- FIRMA 1 -->
 
+        <button
+            id="selectBeforeSignature"
+            class="signature-tool before"
+        >
+            FIRMA 1
+        </button>
 
-            marker.style.top =
-                `${y}px`;
 
-        }
-    );
+        <!-- FIRMA 2 -->
 
+        <button
+            id="selectAfterSignature"
+            class="signature-tool after"
+        >
+            FIRMA 2
+        </button>
 
-    marker.addEventListener(
-        "pointerup",
-        event => {
 
-            dragging =
-                false;
+        <!-- GUARDAR -->
 
+        <button
+            id="saveSignaturePositions"
+            class="save-position-button"
+        >
+            💾 Guardar posiciones
+        </button>
 
-            if (
-                marker.hasPointerCapture(
-                    event.pointerId
-                )
-            ) {
 
-                marker.releasePointerCapture(
-                    event.pointerId
-                );
+        <!-- CERRAR -->
 
-            }
+        <button
+            id="closeSignatureConfigurator"
+            class="close-config-button"
+        >
+            Cerrar
+        </button>
 
-        }
-    );
 
-}
+        <!-- MENSAJE -->
 
+        <p
+            id="configMessage"
+            class="config-message"
+        >
+            Selecciona una firma y arrástrala al lugar deseado.
+        </p>
 
-// =========================================
-// GUARDAR POSICIONES
-// =========================================
+    </div>
 
-saveSignaturePositions.addEventListener(
-    "click",
-    saveAllSignaturePositions
-);
 
 
-async function saveAllSignaturePositions() {
+    <!-- =====================================
+         PDF DEL CONFIGURADOR
+    ====================================== -->
 
-    configMessage.textContent =
-        "Guardando posiciones...";
+    <div
+        id="pdfConfigScroll"
+        class="pdf-config-scroll"
+    ></div>
 
 
-    try {
+</div>
 
-        const slots = [
 
-            "BEFORE_RECESS",
 
-            "AFTER_RECESS"
+<!-- =========================================
+     SUPABASE
+========================================= -->
 
-        ];
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script src="supabase.js"></script>
 
-        for (
-            const slot of slots
-        ) {
 
-            const marker =
-                signatureMarkers[slot];
 
+<!-- =========================================
+     PDF.JS
+========================================= -->
 
-            if (!marker) {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-                continue;
 
-            }
 
+<!-- =========================================
+     DOCUMENT.JS
+========================================= -->
 
-            const page =
-                marker.parentElement;
+<script src="document.js"></script>
 
 
-            const pageNumber =
-                Number(
-                    page.dataset.page
-                );
+</body>
 
-
-            const x =
-                parseFloat(
-                    marker.style.left
-                );
-
-
-            const y =
-                parseFloat(
-                    marker.style.top
-                );
-
-
-            const width =
-                marker.offsetWidth;
-
-
-            const height =
-                marker.offsetHeight;
-
-
-            const {
-                error
-            } =
-                await supabaseClient
-                    .from(
-                        "document_signatures"
-                    )
-                    .update({
-
-                        signature_page:
-                            pageNumber,
-
-                        signature_x:
-                            x,
-
-                        signature_y:
-                            y,
-
-                        signature_width:
-                            width,
-
-                        signature_height:
-                            height
-
-                    })
-                    .eq(
-                        "document_id",
-                        documentId
-                    )
-                    .eq(
-                        "signature_slot",
-                        slot
-                    );
-
-
-            if (error) {
-
-                throw error;
-
-            }
-
-        }
-
-
-        configMessage.textContent =
-            "✓ Posiciones guardadas correctamente.";
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Error guardando posiciones:",
-            error
-        );
-
-
-        configMessage.textContent =
-            `No se pudieron guardar las posiciones: ${error.message}`;
-
-    }
-
-}
-
-
-// =========================================
-// CERRAR CONFIGURADOR
-// =========================================
-
-closeSignatureConfigurator.addEventListener(
-    "click",
-    () => {
-
-        signatureConfigurator.classList.add(
-            "hidden"
-        );
-
-    }
-);
-
-
-// =========================================
-// ACTUALIZACIÓN EN TIEMPO REAL
-// =========================================
-
-function listenForSignatureChanges() {
-
-    supabaseClient
-        .channel(
-            `document-signatures-${documentId}`
-        )
-        .on(
-            "postgres_changes",
-            {
-
-                event:
-                    "UPDATE",
-
-                schema:
-                    "public",
-
-                table:
-                    "document_signatures",
-
-                filter:
-                    `document_id=eq.${documentId}`
-
-            },
-
-            payload => {
-
-                console.log(
-                    "Firma actualizada:",
-                    payload.new
-                );
-
-
-                loadSignatures();
-
-                loadDocument();
-
-            }
-        )
-        .subscribe();
-
-}
-
-
-// =========================================
-// INICIAR
-// =========================================
-
-async function init() {
-
-    await loadDocument();
-
-    await loadSignatures();
-
-    listenForSignatureChanges();
-
-}
-
-
-init();
+</html>
